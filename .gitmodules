@@ -1,0 +1,3 @@
+[submodule "rtc"]
+	path = rtc
+	url = git@github.com:accident-detection/module_RTC.git
