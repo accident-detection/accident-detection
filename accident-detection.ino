@@ -1,5 +1,5 @@
 /*DOCUMENTATION:
-1. Includes and pins
+1. Includes | Defines |Globals
 2. Loop and main
 3. Setups
 4. Polling
@@ -10,23 +10,26 @@
 1. Includes and pins
 --------------------------------------------------------------------------------------------------------
 */
-
 //100 GPS Includes
 #include <TinyGPS++.h> // Biblioteka za GPS
-static const unsigned long GPSBaud = 9600; // GPS radi na 9600 bauda
-TinyGPSPlus gps; // Instanca TinyGPS objekta
-SoftwareSerial ss(RXPin, TXPin); // Serija sa GPS modulom
-File sdCardObject; // Varijabla za manipuliranje SD karticom
-#define RXPin 4 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
-#define TXPin 3
-#define chipSelect 2// CS pin SD kartice je spojen na pin 2
-
+#include <SoftwareSerial.h> // Biblioteka za dodatnu serijsku kominkaciju
+#include <SPI.h> // Biblioteka (Serial Peripheral Interface) za komunikaciju SD kartice
+#include <SD.h> // Biblioteka za SD karticu
 //200 AD Includes
 #include "Wire.h"
 #include "HMC5883L.h"
-HMC5883L compass;
-float xv, yv, zv;
-float xold, yold, zold;
+//300 Network Includes
+#include <EtherCard.h>
+//500 RTC Includes
+//600 Display Includes
+#include <LiquidCrystal.h>
+#include <dht.h>
+
+//100 GPS Defines
+#define RXPin 4 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
+#define TXPin 3
+#define chipSelect 2// CS pin SD kartice je spojen na pin 2
+//200 AD Defines
 #define triggerInput_front 4
 #define echoOutput_front 3
 #define triggerInput_back 7
@@ -34,9 +37,23 @@ float xold, yold, zold;
 #define critical_distance 20
 #define critical_gyro_up 1.20
 #define critical_gyro_down 0.80
+//300 Network Defines
+#define DEBUG true
+//500 RTC Defines
+#define DS3231_I2C_ADDRESS 0x68
+//600 Display Defines
+#define DHT11_PIN 6
 
-//300 Network Includes
-#include <EtherCard.h>
+//100 GPS Global
+static const unsigned long GPSBaud = 9600; // GPS radi na 9600 bauda
+TinyGPSPlus gps; // Instanca TinyGPS objekta
+SoftwareSerial ss(RXPin, TXPin); // Serija sa GPS modulom
+File sdCardObject; // Varijabla za manipuliranje SD karticom
+//200 AD Global
+HMC5883L compass;
+float xv, yv, zv;
+float xold, yold, zold;
+//300 Network Global
 static uint32_t timer;
 static byte session;
 Stash stash;
@@ -46,24 +63,11 @@ static byte gwip[] = { 172, 16, 2, 1 }; // Gateway of the device
 static byte dnsip[] = { 172, 16, 0, 3 }; // IP of the DNS server
 static byte mymac[] = { 0x74, 0x69, 0x69, 0x2D, 0x30, 0x31 }; // MAC address
 const char website[] PROGMEM = "adb.dokku.d.h"; // Server address
-#define DEBUG true
-
-//400 SDCard Includes
-#include <SPI.h> // Biblioteka (Serial Peripheral Interface) za komunikaciju SD kartice
-#include <SD.h> // Biblioteka za SD karticu
-#include <SoftwareSerial.h> // Biblioteka za dodatnu serijsku kominkaciju
-
-//500 RTC Includes
-#include "Wire.h"
-#define DS3231_I2C_ADDRESS 0x68
-
-//600 Display Includes
-#include <LiquidCrystal.h>
-#include <dht.h>
+//400 SDCard Global
+//500 RTC Global
+//600 Display Global
 dht DHT;
 LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
-#define DHT11_PIN 6
-
 
 
 /*------------------------------------------------------------------------------------------------------
@@ -80,8 +84,9 @@ void setup() {
   setup_Display();
 }
 void loop() {
-  int data_GPS, code_AD, code_Network, code_SDCard, code_Display;
-  string data_RTC, data_GPS;
+  int code_AD, code_Network, code_SDCard, code_Display;
+  String data_RTC, data_GPS;
+
   //Polling
   data_GPS = polling_GPS();
   code_AD = polling_AD();
@@ -89,6 +94,7 @@ void loop() {
   code_SDCard = polling_SDCard();
   data_RTC = polling_RTC();
   code_Display = polling_Display();
+
   //Decision
 }
 
@@ -162,7 +168,7 @@ void setup_Display() {
 */
 
 //100 - GPS Polling
-int polling_GPS() {
+String polling_GPS() {
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
     if (gps.encode(ss.read())) {
@@ -300,7 +306,117 @@ int polling_AD() {
       break;
   }
 }
-
+void AccidentDetector(char* state) {
+  bool distanceFront, distanceBack;
+  bool gyroWarning;
+  //Polling Gyroscope and Distance sensors
+  gyroWarning = ReadGyro();
+  distanceFront = ReadDistanceFront();
+  distanceBack = ReadDistanceBack();
+  //Calculating new state
+  if (gyroWarning == false) { //0XX
+    if (distanceFront == false) { //00X
+      if (distanceBack == false) //000
+        *state = '0';
+      else //001
+        *state = '1';
+    }
+    else { //01X
+      if (distanceBack == false) //010
+        *state = '2';
+      else //011
+        *state = '3';
+    }
+  }
+  else { //1XX
+    if (distanceFront == false) { //10X
+      if (distanceBack == false) //100
+        *state = '4';
+      else //101
+        *state = '5';
+    }
+    else { //11X
+      if (distanceBack == false) //110
+        *state = '6';
+      else //111
+        *state = '7';
+    }
+  }
+  return;
+}
+bool ReadDistanceFront()
+{
+  long duration_front, distance_front;
+  digitalWrite(triggerInput_front, LOW);
+  digitalWrite(triggerInput_front, HIGH);
+  digitalWrite(triggerInput_front, LOW);
+  duration_front = pulseIn(echoOutput_front, HIGH);
+  distance_front = (duration_front / 2.) / 29.1;
+  return (distance_front < (long)critical_distance);
+}
+bool ReadDistanceBack()
+{
+  long duration_back, distance_back;
+  digitalWrite(triggerInput_back, LOW);
+  digitalWrite(triggerInput_back, HIGH);
+  digitalWrite(triggerInput_back, LOW);
+  duration_back = pulseIn(echoOutput_back, HIGH);
+  distance_back = (duration_back / 2.) / 29.1;
+  return (distance_back < (long)critical_distance);
+}
+bool ReadGyro() {
+  getHeading();
+  //Algorithm for determination of critical gyro change
+  bool gyroChange = false;
+  if (abs(xv) > abs(xold * critical_gyro_up) ||
+      abs(xv) < abs(xold * critical_gyro_down) ||
+      abs(yv) > abs(yold * critical_gyro_up) ||
+      abs(yv) < abs(yold * critical_gyro_down) ||
+      abs(zv) > abs(zold * critical_gyro_up) ||
+      abs(zv) < abs(zold * critical_gyro_down)
+     ) {
+    gyroChange = true;
+  }
+  xold = xv;
+  yold = yv;
+  zold = zv;
+  return gyroChange;
+}
+void setupHMC5883L()
+{
+  compass.SetScale(0.88);
+  compass.SetMeasurementMode(Measurement_Continuous);
+}
+void getHeading()
+{
+  MagnetometerRaw raw = compass.ReadRawAxis();
+  xv = (float)raw.XAxis;
+  yv = (float)raw.YAxis;
+  zv = (float)raw.ZAxis;
+}
+float calibrated_values[3];
+void transformation(float uncalibrated_values[3]) {
+  double calibration_matrix[3][3] =
+  {
+    { 1.078, 0.009, 0.003 },
+    { 0.014, 1.073, -0.162 },
+    { 0.038, 0.009, 1.216 }
+  };
+  double bias[3] =
+  {
+    -175.886,
+    -190.091,
+    57.551
+  };
+  for (int i = 0; i < 3; ++i)
+    uncalibrated_values[i] = uncalibrated_values[i] - bias[i];
+  float result[3] = { 0, 0, 0 };
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+      result[i] += calibration_matrix[i][j] * uncalibrated_values[j];
+  for (int i = 0; i < 3; ++i)
+    calibrated_values[i] = result[i];
+}
 //300 - Ethernet Polling
 int polling_Network() {
 }
