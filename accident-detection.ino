@@ -7,7 +7,7 @@
 
 
 /*------------------------------------------------------------------------------------------------------
-1. Includes and pins
+1. Includes | Defines |Globals
 --------------------------------------------------------------------------------------------------------
 */
 //100 GPS Includes
@@ -25,18 +25,19 @@
 #include <LiquidCrystal.h>
 #include <dht.h>
 
+
 //100 GPS Defines
 #define RXPin 4 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
 #define TXPin 3
 #define chipSelect 2// CS pin SD kartice je spojen na pin 2
 //200 AD Defines
-#define triggerInput_front 4
-#define echoOutput_front 3
-#define triggerInput_back 7
-#define echoOutput_back 6
-#define critical_distance 20
-#define critical_gyro_up 1.20
-#define critical_gyro_down 0.80
+#define AD_triggerInput_front 4
+#define AD_echoOutput_front 3
+#define AD_triggerInput_back 7
+#define AD_echoOutput_back 6
+#define AD_critical_distance 20
+#define AD_critical_gyro_up 1.20
+#define AD_critical_gyro_down 0.80
 //300 Network Defines
 #define DEBUG true
 //500 RTC Defines
@@ -44,15 +45,16 @@
 //600 Display Defines
 #define DHT11_PIN 6
 
+
 //100 GPS Global
 static const unsigned long GPSBaud = 9600; // GPS radi na 9600 bauda
 TinyGPSPlus gps; // Instanca TinyGPS objekta
 SoftwareSerial ss(RXPin, TXPin); // Serija sa GPS modulom
 File sdCardObject; // Varijabla za manipuliranje SD karticom
 //200 AD Global
-HMC5883L compass;
-float xv, yv, zv;
-float xold, yold, zold;
+HMC5883L AD_compass;
+float AD_xv, AD_yv, AD_zv;
+float AD_xold, AD_yold, AD_zold;
 //300 Network Global
 static uint32_t timer;
 static byte session;
@@ -129,12 +131,12 @@ void setup_GPS() {
 void setup_AD() {
   Serial.begin(9600);
   Wire.begin();
-  compass = HMC5883L();
+  AD_compass = HMC5883L();
   setupHMC5883L();
-  pinMode(triggerInput_front, OUTPUT);
-  pinMode(echoOutput_front, INPUT);
-  pinMode(triggerInput_back, OUTPUT);
-  pinMode(echoOutput_back, INPUT);;
+  pinMode(AD_triggerInput_front, OUTPUT);
+  pinMode(AD_echoOutput_front, INPUT);
+  pinMode(AD_triggerInput_back, OUTPUT);
+  pinMode(AD_echoOutput_back, INPUT);;
 }
 
 //300 - Ethernet Setup
@@ -349,52 +351,52 @@ void AccidentDetector(char* state) {
 bool ReadDistanceFront()
 {
   long duration_front, distance_front;
-  digitalWrite(triggerInput_front, LOW);
-  digitalWrite(triggerInput_front, HIGH);
-  digitalWrite(triggerInput_front, LOW);
-  duration_front = pulseIn(echoOutput_front, HIGH);
+  digitalWrite(AD_triggerInput_front, LOW);
+  digitalWrite(AD_triggerInput_front, HIGH);
+  digitalWrite(AD_triggerInput_front, LOW);
+  duration_front = pulseIn(AD_echoOutput_front, HIGH);
   distance_front = (duration_front / 2.) / 29.1;
-  return (distance_front < (long)critical_distance);
+  return (distance_front < (long)AD_critical_distance);
 }
 bool ReadDistanceBack()
 {
   long duration_back, distance_back;
-  digitalWrite(triggerInput_back, LOW);
-  digitalWrite(triggerInput_back, HIGH);
-  digitalWrite(triggerInput_back, LOW);
-  duration_back = pulseIn(echoOutput_back, HIGH);
+  digitalWrite(AD_triggerInput_back, LOW);
+  digitalWrite(AD_triggerInput_back, HIGH);
+  digitalWrite(AD_triggerInput_back, LOW);
+  duration_back = pulseIn(AD_echoOutput_back, HIGH);
   distance_back = (duration_back / 2.) / 29.1;
-  return (distance_back < (long)critical_distance);
+  return (distance_back < (long)AD_critical_distance);
 }
 bool ReadGyro() {
   getHeading();
   //Algorithm for determination of critical gyro change
   bool gyroChange = false;
-  if (abs(xv) > abs(xold * critical_gyro_up) ||
-      abs(xv) < abs(xold * critical_gyro_down) ||
-      abs(yv) > abs(yold * critical_gyro_up) ||
-      abs(yv) < abs(yold * critical_gyro_down) ||
-      abs(zv) > abs(zold * critical_gyro_up) ||
-      abs(zv) < abs(zold * critical_gyro_down)
+  if (abs(AD_xv) > abs(AD_xold * AD_critical_gyro_up) ||
+      abs(AD_xv) < abs(AD_xold * AD_critical_gyro_down) ||
+      abs(AD_yv) > abs(AD_yold * AD_critical_gyro_up) ||
+      abs(AD_yv) < abs(AD_yold * AD_critical_gyro_down) ||
+      abs(AD_zv) > abs(AD_zold * AD_critical_gyro_up) ||
+      abs(AD_zv) < abs(AD_zold * AD_critical_gyro_down)
      ) {
     gyroChange = true;
   }
-  xold = xv;
-  yold = yv;
-  zold = zv;
+  AD_xold = AD_xv;
+  AD_yold = AD_yv;
+  AD_zold = AD_zv;
   return gyroChange;
 }
 void setupHMC5883L()
 {
-  compass.SetScale(0.88);
-  compass.SetMeasurementMode(Measurement_Continuous);
+  AD_compass.SetScale(0.88);
+  AD_compass.SetMeasurementMode(Measurement_Continuous);
 }
 void getHeading()
 {
-  MagnetometerRaw raw = compass.ReadRawAxis();
-  xv = (float)raw.XAxis;
-  yv = (float)raw.YAxis;
-  zv = (float)raw.ZAxis;
+  MagnetometerRaw raw = AD_compass.ReadRawAxis();
+  AD_xv = (float)raw.XAxis;
+  AD_yv = (float)raw.YAxis;
+  AD_zv = (float)raw.ZAxis;
 }
 float calibrated_values[3];
 void transformation(float uncalibrated_values[3]) {
