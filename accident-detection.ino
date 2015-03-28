@@ -82,7 +82,7 @@ void loop() {
   code_AD = polling_AD();
   code_Network = polling_Network();
   code_SDCard = polling_SDCard();
-  code_RTC = polling_RTC();
+  String code_RTC = polling_RTC();
   code_Display = polling_Display();
 
   //Decision
@@ -322,21 +322,15 @@ int polling_SDCard() {
   }
 }
 //500 - RTC Polling
-int polling_RTC() {
-  Serial.println(getTime());
-}
-byte decToBcd(byte val)
-{
+byte decToBcd(byte val) {
   return ( (val / 10 * 16) + (val % 10) );
 }
-byte bcdToDec(byte val)
-{
+byte bcdToDec(byte val) {
   return ( (val / 16 * 10) + (val % 16) );
 }
 void setTime(byte second, byte minute, byte hour,
              byte dayOfWeek, byte dayOfMonth, byte month,
-             byte year)
-{
+             byte year) {
   Wire.beginTransmission(DS3231_I2C_ADDRESS);
   Wire.write(0);
   Wire.write(decToBcd(second));
@@ -348,7 +342,7 @@ void setTime(byte second, byte minute, byte hour,
   Wire.write(decToBcd(year));
   Wire.endTransmission();
 }
-String getTime() {
+String polling_RTC() {
   String time = "";
   byte second, minute, hour, dayOfWeek,
        dayOfMonth, month, year;
