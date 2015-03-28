@@ -276,33 +276,35 @@ int polling_AD() {
   switch (accidentState) {
     case '1':
       Serial.println("201 - Back sensor!");
+      return 201;
       break;
     case '2':
       Serial.println("202 - Front sensor!");
+      return 202;
       break;
     case '3':
       Serial.println("203 - Both sensors!");
+      return 203;
       break;
     case '4':
       Serial.println("204 - Gyro reacted!");
+      return 204;
       break;
     case '5':
       Serial.println("205 - BACK HIT!");
-      Serial.println("205 - BACK HIT!");
-      Serial.println("205 - BACK HIT!");
+      return 205;
       break;
     case '6':
       Serial.println("206 - FRONT HIT!");
-      Serial.println("206 - FRONT HIT!");
-      Serial.println("206 - FRONT HIT!");
+      return 206;
       break;
     case '7':
       Serial.println("207 - HIT WHILE SURROUNDED!");
-      Serial.println("207 - HIT WHILE SURROUNDED!");
-      Serial.println("207 - HIT WHILE SURROUNDED!");
+      return 207;
       break;
     default:
       Serial.println("200 - Everything ok!");
+      return 200;
       break;
   }
 }
@@ -426,31 +428,31 @@ int sendData(String csv) {
 
 //400 - SDCard Polling
 int polling_SDCard() {
-  void writeTXTToSD() {
-    if (gps.location.isValid()) { // Zapisujemo samo ako imamo koordinate
-      sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
-      sdCardObject.print(gps.location.lng(), 6);
-      sdCardObject.print(",");
-      sdCardObject.print(gps.location.lat(), 6);
-      sdCardObject.print(" ");
-      sdCardObject.close();
-    }
-  }
-  void writeCSVToSD() {
-    if (gps.location.isValid()) {
-      sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
-      sdCardObject.print(gps.location.lng(), 6);
-      sdCardObject.print(";");
-      sdCardObject.print(gps.location.lat(), 6);
-      sdCardObject.print(";");
-      sdCardObject.print(gps.speed.kmph());
-      sdCardObject.print(";");
-      sdCardObject.print(gps.altitude.meters());
-      sdCardObject.print(";");
-    }
+
+}
+void writeTXTToSD() {
+  if (gps.location.isValid()) { // Zapisujemo samo ako imamo koordinate
+    sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
+    sdCardObject.print(gps.location.lng(), 6);
+    sdCardObject.print(",");
+    sdCardObject.print(gps.location.lat(), 6);
+    sdCardObject.print(" ");
+    sdCardObject.close();
   }
 }
-
+void writeCSVToSD() {
+  if (gps.location.isValid()) {
+    sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
+    sdCardObject.print(gps.location.lng(), 6);
+    sdCardObject.print(";");
+    sdCardObject.print(gps.location.lat(), 6);
+    sdCardObject.print(";");
+    sdCardObject.print(gps.speed.kmph());
+    sdCardObject.print(";");
+    sdCardObject.print(gps.altitude.meters());
+    sdCardObject.print(";");
+  }
+}
 //500 - RTC Polling
 byte decToBcd(byte val) {
   return ((val / 10 * 16) + (val % 10));
