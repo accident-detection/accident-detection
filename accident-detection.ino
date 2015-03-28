@@ -1,14 +1,15 @@
 /*DOCUMENTATION:
-1. Includes and pins
-2. Loop and main
-3. Setups
-4. Polling
+  1. Includes and pins
+  2. Loop and main
+  3. Setups
+  4. Polling
 */
 
 /*------------------------------------
   1. Includes and pins
 --------------------------------------
 */
+
 //100 GPS Includes
 #include <TinyGPS++.h> // Biblioteka za GPS
 static const unsigned long GPSBaud = 9600; // GPS radi na 9600 bauda
@@ -67,6 +68,7 @@ LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
   2. Loop and main
 --------------------------------------
 */
+
 void setup() {
   setup_GPS();
   setup_AD();
@@ -75,6 +77,7 @@ void setup() {
   setup_RTC();
   setup_Display();
 }
+
 void loop() {
   int code_GPS, code_AD, code_Network, code_SDCard, code_RTC, code_Display;
   //Polling
@@ -93,6 +96,7 @@ void loop() {
   3. Setup sources
 --------------------------------------
 */
+
 //100 - GPS  Setup
 void setup_GPS() {
   Serial.begin(115200);
@@ -112,6 +116,7 @@ void setup_GPS() {
     SD.remove("gpsCSVData.csv");
   }
 }
+
 //200 - AD  Setup
 void setup_AD() {
   Serial.begin(9600);
@@ -123,14 +128,12 @@ void setup_AD() {
   pinMode(triggerInput_back, OUTPUT);
   pinMode(echoOutput_back, INPUT);;
 }
+
 //300 - Ethernet Setup
 void setup_Network() {
 
 }
 
-int sendData(String csv) {
-  // Format the CSV data to JSON and send it to the server.
-}
 //400 - SDCard Setup
 void setup_SDCard() {
   pinMode(10, OUTPUT); // Pin 10 mora biti zauzet za SD modul
@@ -142,20 +145,22 @@ void setup_SDCard() {
     SD.remove("gpsCSVData.csv");
   }
 }
+
 //500 - RTC Setup
 void setup_RTC() {
 
 }
+
 //600 - Display Setup
 void setup_Display() {
 
 }
 
-
 /*------------------------------------
   4. Polling sources
 --------------------------------------
 */
+
 //100 - GPS  Polling
 int polling_GPS() {
   // Nakon svake NMEA recenice ispisuju se podaci
@@ -256,6 +261,7 @@ void displayInfo() {
   }
   Serial.println();
 }
+
 //200 - AD  Polling
 int polling_AD() {
   char accidentState = 0;
@@ -295,10 +301,16 @@ int polling_AD() {
       break;
   }
 }
+
 //300 - Ethernet Polling
 int polling_Network() {
 
 }
+
+int sendData(String csv) {
+  // Format the CSV data to JSON and send it to the server.
+}
+
 //400 - SDCard Polling
 int polling_SDCard() {
   void writeTXTToSD() {
@@ -325,13 +337,16 @@ int polling_SDCard() {
     }
   }
 }
+
 //500 - RTC Polling
 byte decToBcd(byte val) {
   return ( (val / 10 * 16) + (val % 10) );
 }
+
 byte bcdToDec(byte val) {
   return ( (val / 16 * 10) + (val % 16) );
 }
+
 void setTime(byte second, byte minute, byte hour,
              byte dayOfWeek, byte dayOfMonth, byte month,
              byte year) {
@@ -346,6 +361,7 @@ void setTime(byte second, byte minute, byte hour,
   Wire.write(decToBcd(year));
   Wire.endTransmission();
 }
+
 String polling_RTC() {
   String time = "";
   byte second, minute, hour, dayOfWeek,
@@ -386,6 +402,7 @@ String polling_RTC() {
   time.concat(year);
   return time;
 }
+
 //600 - Display Polling
 int polling_Display() {
   int check = DHT.read11(DHT11_PIN);
@@ -403,6 +420,7 @@ int polling_Display() {
   lcd.print(statusSensor);
   delay(1000);
 }
+
 int CheckSensorStatus (int check) {
   switch (check)
   {
@@ -436,14 +454,9 @@ int CheckSensorStatus (int check) {
       return 410;
   }
 }
+
 String CSVFormat (int statusSensor) {
   String toReturn;
   toReturn = toReturn + "Temperatura" + ";" + DHT.temperature + ";" + "Vlaznost" + DHT.humidity + ";" + "Status" + statusSensor;
   return toReturn;
-}
-void SetupLCDDisplay () {
-  lcd.begin(20, 4);
-  lcd.print("Temperatura: ");
-  lcd.setCursor(0, 1);
-  lcd.print("Vlaznost: ");
 }
