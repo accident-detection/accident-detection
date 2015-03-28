@@ -39,11 +39,11 @@ static uint32_t timer;
 static byte session;
 Stash stash;
 byte Ethernet::buffer[700];
-static byte myip[] = { 172, 16, 2, 2 };
-static byte gwip[] = { 172, 16, 2, 1 };
-static byte dnsip[] = { 172, 16, 0, 3 };
-static byte mymac[] = { 0x74, 0x69, 0x69, 0x2D, 0x30, 0x31 };
-const char website[] PROGMEM = "adb.dokku.d.h";
+static byte myip[] = { 172, 16, 2, 2 }; // IP of the device
+static byte gwip[] = { 172, 16, 2, 1 }; // Gateway of the device
+static byte dnsip[] = { 172, 16, 0, 3 }; // IP of the DNS server
+static byte mymac[] = { 0x74, 0x69, 0x69, 0x2D, 0x30, 0x31 }; // MAC address
+const char website[] PROGMEM = "adb.dokku.d.h"; // Server address
 #define DEBUG true
 
 //400 SDCard Includes
@@ -126,6 +126,10 @@ void setup_AD() {
 //300 - Ethernet Setup
 void setup_Network() {
 
+}
+
+int sendData(String csv) {
+  // Format the CSV data to JSON and send it to the server.
 }
 //400 - SDCard Setup
 void setup_SDCard() {
