@@ -79,13 +79,15 @@ void setup() {
 }
 
 void loop() {
-  int code_GPS, code_AD, code_Network, code_SDCard, code_RTC, code_Display;
+  int data_GPS, code_AD, code_Network, code_SDCard, code_Display;
+  String data_RTC, data_GPS;
+  
   //Polling
-  code_GPS = polling_GPS();
+  data_GPS = polling_GPS();
   code_AD = polling_AD();
   code_Network = polling_Network();
   code_SDCard = polling_SDCard();
-  String code_RTC = polling_RTC();
+  data_RTC = polling_RTC();
   code_Display = polling_Display();
 
   //Decision
