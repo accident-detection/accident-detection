@@ -1,13 +1,14 @@
 /*DOCUMENTATION:
-  1. Includes and pins
-  2. Loop and main
-  3. Setups
-  4. Polling
+1. Includes and pins
+2. Loop and main
+3. Setups
+4. Polling
 */
 
-/*------------------------------------
-  1. Includes and pins
---------------------------------------
+
+/*------------------------------------------------------------------------------------------------------
+1. Includes and pins
+--------------------------------------------------------------------------------------------------------
 */
 
 //100 GPS Includes
@@ -64,9 +65,10 @@ LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
 #define DHT11_PIN 6
 
 
-/*------------------------------------
-  2. Loop and main
---------------------------------------
+
+/*------------------------------------------------------------------------------------------------------
+2. Loop and main
+--------------------------------------------------------------------------------------------------------
 */
 
 void setup() {
@@ -77,11 +79,9 @@ void setup() {
   setup_RTC();
   setup_Display();
 }
-
 void loop() {
   int data_GPS, code_AD, code_Network, code_SDCard, code_Display;
-  String data_RTC, data_GPS;
-  
+  string data_RTC, data_GPS;
   //Polling
   data_GPS = polling_GPS();
   code_AD = polling_AD();
@@ -89,17 +89,17 @@ void loop() {
   code_SDCard = polling_SDCard();
   data_RTC = polling_RTC();
   code_Display = polling_Display();
-
   //Decision
 }
 
 
-/*------------------------------------
-  3. Setup sources
---------------------------------------
+
+/*------------------------------------------------------------------------------------------------------
+3. Setup sources
+--------------------------------------------------------------------------------------------------------
 */
 
-//100 - GPS  Setup
+//100 - GPS Setup
 void setup_GPS() {
   Serial.begin(115200);
   ss.begin(GPSBaud);
@@ -119,7 +119,7 @@ void setup_GPS() {
   }
 }
 
-//200 - AD  Setup
+//200 - AD Setup
 void setup_AD() {
   Serial.begin(9600);
   Wire.begin();
@@ -133,7 +133,6 @@ void setup_AD() {
 
 //300 - Ethernet Setup
 void setup_Network() {
-
 }
 
 //400 - SDCard Setup
@@ -150,20 +149,19 @@ void setup_SDCard() {
 
 //500 - RTC Setup
 void setup_RTC() {
-
 }
 
 //600 - Display Setup
 void setup_Display() {
-
 }
 
-/*------------------------------------
-  4. Polling sources
---------------------------------------
+
+/*------------------------------------------------------------------------------------------------------
+4. Polling sources
+--------------------------------------------------------------------------------------------------------
 */
 
-//100 - GPS  Polling
+//100 - GPS Polling
 int polling_GPS() {
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
@@ -178,7 +176,6 @@ int polling_GPS() {
     while (true) {};
   }
 }
-
 // Funkcija za ispis podataka
 void displayInfo() {
   // Koordinate
@@ -237,7 +234,7 @@ void displayInfo() {
   }
   else
   {
-    Serial.print(F("[BRZINA NIJE DOSTUPNA]")) ;
+    Serial.print(F("[BRZINA NIJE DOSTUPNA]"));
   }
   Serial.print(F(" "));
   // Visina
@@ -264,7 +261,7 @@ void displayInfo() {
   Serial.println();
 }
 
-//200 - AD  Polling
+//200 - AD Polling
 int polling_AD() {
   char accidentState = 0;
   Serial.println();
@@ -306,9 +303,7 @@ int polling_AD() {
 
 //300 - Ethernet Polling
 int polling_Network() {
-
 }
-
 int sendData(String csv) {
   // Format the CSV data to JSON and send it to the server.
 }
@@ -342,13 +337,11 @@ int polling_SDCard() {
 
 //500 - RTC Polling
 byte decToBcd(byte val) {
-  return ( (val / 10 * 16) + (val % 10) );
+  return ((val / 10 * 16) + (val % 10));
 }
-
 byte bcdToDec(byte val) {
-  return ( (val / 16 * 10) + (val % 16) );
+  return ((val / 16 * 10) + (val % 16));
 }
-
 void setTime(byte second, byte minute, byte hour,
              byte dayOfWeek, byte dayOfMonth, byte month,
              byte year) {
@@ -363,7 +356,6 @@ void setTime(byte second, byte minute, byte hour,
   Wire.write(decToBcd(year));
   Wire.endTransmission();
 }
-
 String polling_RTC() {
   String time = "";
   byte second, minute, hour, dayOfWeek,
@@ -422,8 +414,7 @@ int polling_Display() {
   lcd.print(statusSensor);
   delay(1000);
 }
-
-int CheckSensorStatus (int check) {
+int CheckSensorStatus(int check) {
   switch (check)
   {
     case DHTLIB_OK: // Sve je u redu s komunikacijom
@@ -456,8 +447,7 @@ int CheckSensorStatus (int check) {
       return 410;
   }
 }
-
-String CSVFormat (int statusSensor) {
+String CSVFormat(int statusSensor) {
   String toReturn;
   toReturn = toReturn + "Temperatura" + ";" + DHT.temperature + ";" + "Vlaznost" + DHT.humidity + ";" + "Status" + statusSensor;
   return toReturn;
