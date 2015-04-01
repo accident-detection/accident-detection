@@ -272,40 +272,42 @@ void displayInfo() {
 //200 - AD Polling
 int polling_AD() {
   char accidentState = 0;
-  Serial.println();
   AccidentDetector(&accidentState);
-  Serial.println(accidentState);
   switch (accidentState) {
+    case '0':
+      //200 - Everything ok
+      return 200;
+      break;
     case '1':
-      Serial.println("201 - Back sensor!");
+      //201 - back sensor reacted - object too close
       return 201;
       break;
     case '2':
-      Serial.println("202 - Front sensor!");
+      //202 - Front sensor reacted - object too close
       return 202;
       break;
     case '3':
-      Serial.println("203 - Both sensors!");
+      //203 - Both distance sensors reacted - objects on both sides too close
       return 203;
       break;
     case '4':
-      Serial.println("204 - Gyro reacted!");
+      //204 - Gyroscope reacted - significant XYZ axis change detected
       return 204;
       break;
     case '5':
-      Serial.println("205 - BACK HIT!");
+      //205 - Back sensor reaction + XYZ change = Back hit detected
       return 205;
       break;
     case '6':
-      Serial.println("206 - FRONT HIT!");
+      //206 - Front sensor reaction + XYZ change = Front hit detected
       return 206;
       break;
     case '7':
-      Serial.println("207 - HIT WHILE SURROUNDED!");
+      //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
       return 207;
       break;
     default:
-      Serial.println("200 - Everything ok!");
+      //200 - Everything ok
       return 200;
       break;
   }
@@ -371,6 +373,8 @@ bool ReadDistanceBack()
 bool ReadGyro() {
   getHeading();
   //Algorithm for determination of critical gyro change
+  //xv,yv,zv are variables for the XYZ axis values
+  //critical_gyro_up and down are global constants which adjust algorithm sensitivity to movement
   bool gyroChange = false;
   if (abs(AD_xv) > abs(AD_xold * AD_critical_gyro_up) ||
       abs(AD_xv) < abs(AD_xold * AD_critical_gyro_down) ||
@@ -386,6 +390,7 @@ bool ReadGyro() {
   AD_zold = AD_zv;
   return gyroChange;
 }
+//Calibration functions
 void setupHMC5883L()
 {
   AD_compass.SetScale(0.88);
@@ -421,6 +426,7 @@ void transformation(float uncalibrated_values[3]) {
   for (int i = 0; i < 3; ++i)
     calibrated_values[i] = result[i];
 }
+
 //300 - Ethernet Polling
 int polling_Network() {
 }
