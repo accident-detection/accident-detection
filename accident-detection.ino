@@ -169,7 +169,10 @@ void setup_Display() {
 --------------------------------------------------------------------------------------------------------
 */
 
-//100 - GPS Polling
+/*----------------------------------------
+100 - GPS Polling
+-----------------------------------------
+*/
 String polling_GPS() {
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
@@ -269,7 +272,10 @@ void displayInfo() {
   Serial.println();
 }
 
-//200 - AD Polling
+/*----------------------------------------
+200 - AD Polling
+-----------------------------------------
+*/
 int polling_AD() {
   char accidentState = 0;
   AccidentDetector(&accidentState);
@@ -427,14 +433,21 @@ void transformation(float uncalibrated_values[3]) {
     calibrated_values[i] = result[i];
 }
 
-//300 - Ethernet Polling
+/*----------------------------------------
+300 - Ethernet Polling
+-----------------------------------------
+*/
 int polling_Network() {
 }
 int sendData(String csv) {
   // Format the CSV data to JSON and send it to the server.
 }
 
-//400 - SDCard Polling
+
+/*----------------------------------------
+400 - SDCard Polling
+-----------------------------------------
+*/
 int polling_SDCard() {
 
 }
@@ -461,7 +474,10 @@ void writeCSVToSD() {
     sdCardObject.print(";");
   }
 }
-//500 - RTC Polling
+/*----------------------------------------
+500 - RTC Polling
+-----------------------------------------
+*/
 byte decToBcd(byte val) {
   return ((val / 10 * 16) + (val % 10));
 }
@@ -522,8 +538,10 @@ String polling_RTC() {
   time.concat(year);
   return time;
 }
-
-//600 - Display Polling
+/*----------------------------------------
+600 - Display Polling
+-----------------------------------------
+*/
 int polling_Display() {
   int check = DHT.read11(DHT11_PIN);
   int statusSensor;
