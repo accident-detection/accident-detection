@@ -46,7 +46,12 @@
 #define DS3231_I2C_ADDRESS 0x68
 //600 Display Defines
 #define DHT11_PIN 6
-
+#define LCDpin1 7
+#define LCDpin2 8
+#define LCDpin3 9
+#define LCDpin4 10
+#define LCDpin5 11
+#define LCDpin6 12
 
 //100 GPS Global
 static const unsigned long GPSBaud = 9600; // GPS radi na 9600 bauda
@@ -71,7 +76,7 @@ const char website[] PROGMEM = "adb.dokku.d.h"; // Server address
 //500 RTC Global
 //600 Display Global
 dht DHT;
-LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 
 
 /*------------------------------------------------------------------------------------------------------
