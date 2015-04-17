@@ -29,7 +29,6 @@
 //100 GPS Defines
 #define RXPin 4 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
 #define TXPin 3
-#define chipSelect 2// CS pin SD kartice je spojen na pin 2
 //200 AD Defines
 #define AD_triggerInput_front 4
 #define AD_echoOutput_front 3
@@ -40,6 +39,9 @@
 #define AD_critical_gyro_down 0.80
 //300 Network Defines
 #define DEBUG true
+// 400 SD Define
+#define chipSelect 2// CS pin SD kartice je spojen na pin 2
+#define pinModePin 10
 //500 RTC Defines
 #define DS3231_I2C_ADDRESS 0x68
 //600 Display Defines
@@ -112,7 +114,7 @@ void setup_GPS() {
   Serial.begin(115200);
   ss.begin(GPSBaud);
   
-  pinMode(10, OUTPUT); // Pin 10 mora biti zauzet za SD modul
+  pinMode(pinModePin, OUTPUT); // Pin 10 mora biti zauzet za SD modul
   SD.begin(chipSelect); // Inicijaliziramo SD karticu i dodijelimo pin
   if (SD.exists("gpsTxtData.txt")) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
     SD.remove("gpsTxtData.txt");
