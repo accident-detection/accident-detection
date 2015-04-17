@@ -30,10 +30,10 @@
 #define RXPin 4 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
 #define TXPin 3
 //200 AD Defines
-#define AD_triggerInput_front 4
-#define AD_echoOutput_front 3
-#define AD_triggerInput_back 7
-#define AD_echoOutput_back 6
+#define AD_triggerInput_front 7
+#define AD_echoOutput_front 6
+#define AD_triggerInput_back 9
+#define AD_echoOutput_back 8
 #define AD_critical_distance 20
 #define AD_critical_gyro_up 1.20
 #define AD_critical_gyro_down 0.80
