@@ -111,12 +111,7 @@ void loop() {
 void setup_GPS() {
   Serial.begin(115200);
   ss.begin(GPSBaud);
-  Serial.println(F("*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*"));
-  Serial.println(F("Visoka skola za primijenjeno racunarstvo"));
-  Serial.println(F("Sustav za detekciju prometne nesrece"));
-  Serial.println(F("Testiranje GPS modula"));
-  Serial.print(F("TinyGPS++ biblioteka u verziji ")); Serial.println(TinyGPSPlus::libraryVersion());
-  Serial.println();
+  
   pinMode(10, OUTPUT); // Pin 10 mora biti zauzet za SD modul
   SD.begin(chipSelect); // Inicijaliziramo SD karticu i dodijelimo pin
   if (SD.exists("gpsTxtData.txt")) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
@@ -177,101 +172,42 @@ String polling_GPS() {
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
     if (gps.encode(ss.read())) {
-      displayInfo();
-      writeTXTToSD();
+      return getGPSData();
     }
   }
-  if (millis() > 5000 && gps.charsProcessed() < 10)
+  if (millis() > 5000 && gps.charsProcessed() < 10) // GPS ne radi
   {
-    Serial.println(F("Veza sa GPS modulom nije uspostavljena."));
-    while (true) {};
+    return "103"; // Vrati kod za gresku
   }
 }
 // Funkcija za ispis podataka
-void displayInfo() {
-  // Koordinate
-  Serial.print(F("Lokacija: "));
-  if (gps.location.isValid())
-  {
-    Serial.print(gps.location.lat(), 6);
-    Serial.print(F(","));
-    Serial.print(gps.location.lng(), 6);
+String getGPSData() {
+  // String koji ce biti vracen sa ili bez error kodova
+  String gpsDataString = "";
+  
+  // Provjere
+  if (gps.location.isValid()){
+    gpsDataString += gps.location.lat() + ";" + gps.location.lng() + ";";
+    
+    if(gps.speed.isValid()){
+      writeTXTToSD();
+      writeCSVToSD();
+    }
   }
-  else
-  {
-    Serial.print(F("[KOORDINATE NEDOSTUPNE]"));
+  else{
+    gpsDataString += "102;102;";
   }
-  // Datum i vrijeme
-  Serial.print(F(" Datum/Vrijeme: "));
-  if (gps.date.isValid())
-  {
-    Serial.print(gps.date.day());
-    Serial.print(F("."));
-    Serial.print(gps.date.month());
-    Serial.print(F("."));
-    Serial.print(gps.date.year());
-    Serial.print(F("."));
+  
+  if(gps.speed.isValid){
+    gpsDataString += gps.speed.kmph() + ";";
   }
-  else
-  {
-    Serial.print(F("[DATUM NEDOSTUPAN]"));
+  else{
+    gpsDataString += "102;";
   }
-  Serial.print(F("/"));
-  if (gps.time.isValid())
-  {
-    if (gps.time.hour() < 10) Serial.print(F("0"));
-    Serial.print(gps.time.hour() + 1);
-    Serial.print(F(":"));
-    if (gps.time.minute() < 10) Serial.print(F("0"));
-    Serial.print(gps.time.minute());
-    Serial.print(F(":"));
-    if (gps.time.second() < 10) Serial.print(F("0"));
-    Serial.print(gps.time.second());
-    Serial.print(F("."));
-    if (gps.time.centisecond() < 10) Serial.print(F("0"));
-    Serial.print(gps.time.centisecond());
-  }
-  else
-  {
-    Serial.print(F("[VRIJEME NEDOSTUPNO]"));
-  }
-  Serial.print(F(" "));
-  // Brzina
-  if (gps.speed.isValid())
-  {
-    Serial.print("Brzina: ");
-    Serial.print(gps.speed.kmph());
-    Serial.print("km/h");
-  }
-  else
-  {
-    Serial.print(F("[BRZINA NIJE DOSTUPNA]"));
-  }
-  Serial.print(F(" "));
-  // Visina
-  if (gps.altitude.isValid())
-  {
-    Serial.print("Visina: ");
-    Serial.print(gps.altitude.meters());
-  }
-  else
-  {
-    Serial.print("[VISINA NIJE DOSTUPNA]");
-  }
-  Serial.print(F(" "));
-  // Jacina signala
-  if (gps.hdop.isValid())
-  {
-    Serial.print("Jacina signala (HDOP): ");
-    Serial.print(gps.hdop.value());
-  }
-  else
-  {
-    Serial.print("[JACINA SIGNALA NIJE DOSTUPNA]");
-  }
-  Serial.println();
+  
+  return gpsDataString;
 }
-
+  
 /*----------------------------------------
 200 - AD Polling
 -----------------------------------------
@@ -449,30 +385,23 @@ int sendData(String csv) {
 -----------------------------------------
 */
 int polling_SDCard() {
-
 }
 void writeTXTToSD() {
-  if (gps.location.isValid()) { // Zapisujemo samo ako imamo koordinate
-    sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
-    sdCardObject.print(gps.location.lng(), 6);
-    sdCardObject.print(",");
-    sdCardObject.print(gps.location.lat(), 6);
-    sdCardObject.print(" ");
-    sdCardObject.close();
-  }
+  sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
+  sdCardObject.print(gps.location.lng(), 6);
+  sdCardObject.print(",");
+  sdCardObject.print(gps.location.lat(), 6);
+  sdCardObject.print(" ");
+  sdCardObject.close();
 }
 void writeCSVToSD() {
-  if (gps.location.isValid()) {
-    sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
-    sdCardObject.print(gps.location.lng(), 6);
-    sdCardObject.print(";");
-    sdCardObject.print(gps.location.lat(), 6);
-    sdCardObject.print(";");
-    sdCardObject.print(gps.speed.kmph());
-    sdCardObject.print(";");
-    sdCardObject.print(gps.altitude.meters());
-    sdCardObject.print(";");
-  }
+  sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
+  sdCardObject.print(gps.location.lng(), 6);
+  sdCardObject.print(";");
+  sdCardObject.print(gps.location.lat(), 6);
+  sdCardObject.print(";");
+  sdCardObject.print(gps.speed.kmph());
+  sdCardObject.print(";");
 }
 /*----------------------------------------
 500 - RTC Polling
