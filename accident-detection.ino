@@ -177,7 +177,7 @@ String polling_GPS() {
   }
   if (millis() > 5000 && gps.charsProcessed() < 10) // GPS ne radi
   {
-    return "103"; // Vrati kod za gresku
+    return "103;103;103;"; // Vrati kod za gresku
   }
 }
 // Funkcija za ispis podataka
