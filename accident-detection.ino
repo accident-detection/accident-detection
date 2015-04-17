@@ -93,18 +93,51 @@ void setup() {
   setup_Display();
 }
 void loop() {
-  int code_AD, code_Network, code_SDCard, code_Display;
+  int code_AD, code_Network, code_SDCard, code_Display, code_GPS;
   String data_RTC, data_GPS;
 
   //Polling
-  data_GPS = polling_GPS();
+  int cycle = 0;
+
   code_AD = polling_AD();
-  code_Network = polling_Network();
-  code_SDCard = polling_SDCard();
-  data_RTC = polling_RTC();
-  code_Display = polling_Display();
+  if (cycle % 10 == 0) {
+    data_GPS = polling_GPS(&code_GPS);
+    code_Network = polling_Network();
+    code_SDCard = polling_SDCard();
+    data_RTC = polling_RTC();
+    code_Display = polling_Display();
+  }
+  cycle++;
+  if (cycle > 100)
+    cycle = 0;
 
   //Decision
+  switch (code_AD) {
+    case 200:
+      //200 - Everything ok
+      break;
+    case 201:
+      //201 - back sensor reacted - object too close
+      break;
+    case 202:
+      //202 - Front sensor reacted - object too close
+      break;
+    case 203:
+      //203 - Both distance sensors reacted - objects on both sides too close
+      break;
+    case 204:
+      //204 - Gyroscope reacted - significant XYZ axis change detected
+      break;
+    case 205:
+      //205 - Back sensor reaction + XYZ change = Back hit detected
+      break;
+    case 206:
+      //206 - Front sensor reaction + XYZ change = Front hit detected
+      break;
+    case 207:
+      //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
+      break;
+  }
 }
 
 
@@ -118,7 +151,7 @@ void loop() {
 void setup_GPS() {
   Serial.begin(115200);
   ss.begin(GPSBaud);
-  
+
   pinMode(pinModePin, OUTPUT); // Pin 10 mora biti zauzet za SD modul
   SD.begin(chipSelect); // Inicijaliziramo SD karticu i dodijelimo pin
   if (SD.exists("gpsTxtData.txt")) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
@@ -175,7 +208,7 @@ void setup_Display() {
 100 - GPS Polling
 -----------------------------------------
 */
-String polling_GPS() {
+String polling_GPS(int* code_GPS) {
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
     if (gps.encode(ss.read())) {
@@ -191,30 +224,30 @@ String polling_GPS() {
 String getGPSData() {
   // String koji ce biti vracen sa ili bez error kodova
   String gpsDataString = "";
-  
+
   // Provjere
-  if (gps.location.isValid()){
+  if (gps.location.isValid()) {
     gpsDataString += gps.location.lat() + ";" + gps.location.lng() + ";";
-    
-    if(gps.speed.isValid()){
+
+    if (gps.speed.isValid()) {
       writeTXTToSD();
       writeCSVToSD();
     }
   }
-  else{
+  else {
     gpsDataString += "102;102;";
   }
-  
-  if(gps.speed.isValid){
+
+  if (gps.speed.isValid) {
     gpsDataString += gps.speed.kmph() + ";";
   }
-  else{
+  else {
     gpsDataString += "102;";
   }
-  
+
   return gpsDataString;
 }
-  
+
 /*----------------------------------------
 200 - AD Polling
 -----------------------------------------
