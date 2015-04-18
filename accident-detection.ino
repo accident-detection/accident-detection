@@ -210,7 +210,7 @@ void setup_Display() {
 100 - GPS Polling
 -----------------------------------------
 */
-String polling_GPS(int* code_GPS) {
+String polling_GPS() {
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
     if (gps.encode(ss.read())) {
@@ -229,7 +229,7 @@ String getGPSData() {
 
   // Provjere
   if (gps.location.isValid()) {
-    gpsDataString += gps.location.lat() + ";" + gps.location.lng() + ";";
+    gpsDataString += (String)gps.location.lat() + ";" + (String)gps.location.lng() + ";";
 
     if (gps.speed.isValid()) {
       writeTXTToSD();
@@ -240,8 +240,8 @@ String getGPSData() {
     gpsDataString += "102;102;";
   }
 
-  if (gps.speed.isValid) {
-    gpsDataString += gps.speed.kmph() + ";";
+  if (gps.speed.isValid()) {
+    gpsDataString += (String)gps.speed.kmph() + ";";
   }
   else {
     gpsDataString += "102;";
@@ -263,35 +263,43 @@ int polling_AD() {
       return 200;
       break;
     case '1':
+      Serial.println("200");
       //201 - back sensor reacted - object too close
       return 201;
       break;
     case '2':
+      Serial.println("201");
       //202 - Front sensor reacted - object too close
       return 202;
       break;
     case '3':
+      Serial.println("202");
       //203 - Both distance sensors reacted - objects on both sides too close
       return 203;
       break;
     case '4':
+      Serial.println("203");
       //204 - Gyroscope reacted - significant XYZ axis change detected
       return 204;
       break;
     case '5':
+      Serial.println("204");
       //205 - Back sensor reaction + XYZ change = Back hit detected
       return 205;
       break;
     case '6':
+      Serial.println("205");
       //206 - Front sensor reaction + XYZ change = Front hit detected
       return 206;
       break;
     case '7':
+      Serial.println("206");
       //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
       return 207;
       break;
     default:
       //200 - Everything ok
+      Serial.println("Default");
       return 200;
       break;
   }
