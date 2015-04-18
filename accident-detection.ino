@@ -40,7 +40,7 @@
 //300 Network Defines
 #define DEBUG true
 // 400 SD Define
-#define chipSelect 5// CS pin SD kartice je spojen na pin 2
+#define chipSelect 5 // CS pin SD kartice je spojen na pin 5
 #define pinModePin 10
 //500 RTC Defines
 #define DS3231_I2C_ADDRESS 0x68
