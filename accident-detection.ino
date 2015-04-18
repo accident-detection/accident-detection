@@ -36,6 +36,7 @@
 #define TXPin 3
 
 //1.2.200 AD Defines
+#define AD_cycles 10
 #define AD_triggerInput_front 7
 #define AD_echoOutput_front 6
 #define AD_triggerInput_back 9
@@ -75,6 +76,7 @@ File sdCardObject; // Varijabla za manipuliranje SD karticom
 HMC5883L AD_compass;
 float AD_xv, AD_yv, AD_zv;
 float AD_xold, AD_yold, AD_zold;
+int GLOBAL_cycle = 0;
 
 //1.3.300 Network Global
 static uint32_t timer;
@@ -101,10 +103,11 @@ LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 void setup() {
   delay(50);
   Serial.begin(9600);
-  setup_GPS();// PROVJERENO-OK
-  setup_AD();// PROVJERENO-OK
-  setup_SDCard();// PROVJERENO-OK
+  setup_GPS();
+  setup_AD();
+  setup_SDCard();
   Serial.println("Gotov setup");
+  GLOBAL_cycle = 0;
 }
 
 //2.2. Loop
@@ -117,51 +120,40 @@ void loop() {
   Serial.print("AD: ");
   code_AD = polling_AD(); // PROVJERENO-OK
   Serial.println(code_AD);
-  
-  Serial.print("GPS: ");
-  data_GPS = polling_GPS();
-  Serial.println(data_GPS);
-  
-  Serial.print("RTC: ");
-  data_RTC = polling_RTC(); // PROVJERENO-OK
-  Serial.println(data_RTC);
-  
-  Serial.print("Display: ");
-  code_Display = polling_Display(); //PROVJERENO-OK
-  Serial.println(code_Display);
-  
-  Serial.println();
-  
+
+  if (GLOBAL_cycle %  AD_cycles == 0) {
+    Serial.print("GPS: ");
+    data_GPS = polling_GPS();
+    Serial.println(data_GPS);
+
+    Serial.print("RTC: ");
+    data_RTC = polling_RTC(); // PROVJERENO-OK
+    Serial.println(data_RTC);
+
+    Serial.print("Display: ");
+    code_Display = polling_Display(); //PROVJERENO-OK
+    Serial.println(code_Display);
+  }
+  if (GLOBAL_cycle > 100)
+    GLOBAL_cycle = 0;
+  else
+    GLOBAL_cycle++;
+
   //2.2.3. Decision making
-  //  switch (code_AD) {
-  //    case 200:
-  //      //200 - Everything ok
-  //      break;
-  //    case 201:
-  //      //201 - back sensor reacted - object too close
-  //      break;
-  //    case 202:
-  //      //202 - Front sensor reacted - object too close
-  //      break;
-  //    case 203:
-  //      //203 - Both distance sensors reacted - objects on both sides too close
-  //      break;
-  //    case 204:
-  //      //204 - Gyroscope reacted - significant XYZ axis change detected
-  //      break;
-  //    case 205:
-  //      //205 - Back sensor reaction + XYZ change = Back hit detected
-  //      break;
-  //    case 206:
-  //      //206 - Front sensor reaction + XYZ change = Front hit detected
-  //      break;
-  //    case 207:
-  //      //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
-  //      break;
-  //  }
+  if (code_AD == 200) {
+    //Q0 Everything ok
+    //Keep doing business as usual
+  }
+  else if (code_AD == 201 || code_AD == 202 || code_AD == 203 || code_AD == 204) {
+    //Q2 Warning - one of the sensors reacted
+    //Backup data to SD card
+  }
+  else if (code_AD == 205 || code_AD == 206 || code_AD == 207) {
+    //Q3 Begin 20 second countdown
+    //If user resets on button return to 200
+    //else if countdown goes to 0 report accident to server
+  }
 }
-
-
 
 /*------------------------------------------------------------------------------------------------------
 3. Setup sources
@@ -456,13 +448,14 @@ void setTime(byte second, byte minute, byte hour,
 }
 String polling_RTC() {
   String time = "";
-  byte second, minute, hour, dayOfWeek,
-       dayOfMonth, month, year;
+  byte second, minute, hour, dayOfWeek, dayOfMonth, month, year;
+
   // Getting time from the DS3231
   Wire.beginTransmission(DS3231_I2C_ADDRESS);
   Wire.write(0); // set register pointer to 00h
   Wire.endTransmission();
   Wire.requestFrom(DS3231_I2C_ADDRESS, 7);
+
   // request seven bytes of data starting from register 00h
   second = bcdToDec(Wire.read() & 0x7f);
   minute = bcdToDec(Wire.read());
@@ -471,19 +464,19 @@ String polling_RTC() {
   dayOfMonth = bcdToDec(Wire.read());
   month = bcdToDec(Wire.read());
   year = bcdToDec(Wire.read());
+
   // Time
   time.concat(hour);
   time.concat(":");
-  if (minute < 10)
-  {
+  if (minute < 10) {
     time.concat("0");
   }
   time.concat(minute);
   time.concat(":");
-  if (second < 10)
-  {
+  if (second < 10) {
     time.concat("0");
   }
+
   // Date
   time.concat(second);
   time.concat(" ");
@@ -492,6 +485,7 @@ String polling_RTC() {
   time.concat(month);
   time.concat("/");
   time.concat(year);
+
   return time;
 }
 /*----------------------------------------
@@ -512,7 +506,7 @@ int polling_Display() {
   lcd.print(" %");
   lcd.setCursor(15, 3); // Ispis error koda
   lcd.print(statusSensor);
-  
+
   return statusSensor;
 }
 int CheckSensorStatus(int check) {
