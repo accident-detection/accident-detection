@@ -85,7 +85,6 @@ LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 */
 
 void setup() {
-  delay(50);
   Serial.begin(9600);
   setup_GPS();
   setup_AD();
@@ -93,7 +92,7 @@ void setup() {
   setup_SDCard();
   setup_RTC();
   setup_Display();
-  
+  Serial.println("Pocetak");
   
 }
 void loop() {
@@ -109,7 +108,7 @@ void loop() {
   code_SDCard = polling_SDCard();
   data_RTC = polling_RTC();
   code_Display = polling_Display();
-  
+  Serial.println(code_AD);
   cycle++;
   if (cycle > 100)
     cycle = 0;
@@ -152,7 +151,6 @@ void loop() {
 
 //100 - GPS Setup
 void setup_GPS() {
-  Serial.println("Tu sam");
   ss.begin(GPSBaud);
 
   pinMode(pinModePin, OUTPUT); // Pin 10 mora biti zauzet za SD modul
