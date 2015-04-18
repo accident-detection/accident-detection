@@ -7,29 +7,35 @@
 
 
 /*------------------------------------------------------------------------------------------------------
-1. Includes | Defines |Globals
+1. 1.Includes | 2.Defines | 3.Globals
 --------------------------------------------------------------------------------------------------------
 */
-//100 GPS Includes
+
+//1.1. Includes
+//1.1.100 GPS Includes
 #include <TinyGPS++.h> // Biblioteka za GPS
 #include <SoftwareSerial.h> // Biblioteka za dodatnu serijsku kominkaciju
 #include <SPI.h> // Biblioteka (Serial Peripheral Interface) za komunikaciju SD kartice
 #include <SD.h> // Biblioteka za SD karticu
-//200 AD Includes
+
+//1.1.200 AD Includes
 #include "Wire.h"
 #include "HMC5883L.h"
-//300 Network Includes
+
+//1.1.300 Network Includes
 #include <EtherCard.h>
-//500 RTC Includes
-//600 Display Includes
+
+//1.1.600 Display Includes
 #include <LiquidCrystal.h>
 #include <dht.h>
 
 
-//100 GPS Defines
+//1.2. Defines
+//1.2.100 GPS Defines
 #define RXPin 2 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
 #define TXPin 3
-//200 AD Defines
+
+//1.2.200 AD Defines
 #define AD_triggerInput_front 7
 #define AD_echoOutput_front 6
 #define AD_triggerInput_back 9
@@ -37,14 +43,18 @@
 #define AD_critical_distance 20
 #define AD_critical_gyro_up 1.20
 #define AD_critical_gyro_down 0.80
-//300 Network Defines
+
+//1.2.300 Network Defines
 #define DEBUG true
-// 400 SD Define
+
+//1.2.400 SD Define
 #define chipSelect 5 // CS pin SD kartice je spojen na pin 5
 #define pinModePin 10
-//500 RTC Defines
+
+//1.2.500 RTC Defines
 #define DS3231_I2C_ADDRESS 0x68
-//600 Display Defines
+
+//1.2.600 Display Defines
 #define DHT11_PIN 6
 #define LCDpin1 11
 #define LCDpin2 12
@@ -53,16 +63,20 @@
 #define LCDpin5 15
 #define LCDpin6 16
 
-//100 GPS Global
+
+//1.3. Globals
+//1.3.100 GPS Global
 static const unsigned long GPSBaud = 9600; // GPS radi na 9600 bauda
 TinyGPSPlus gps; // Instanca TinyGPS objekta
 SoftwareSerial ss(RXPin, TXPin); // Serija sa GPS modulom
 File sdCardObject; // Varijabla za manipuliranje SD karticom
-//200 AD Global
+
+//1.3.200 AD Global
 HMC5883L AD_compass;
 float AD_xv, AD_yv, AD_zv;
 float AD_xold, AD_yold, AD_zold;
-//300 Network Global
+
+//1.3.300 Network Global
 static uint32_t timer;
 static byte session;
 Stash stash;
@@ -72,74 +86,79 @@ static byte gwip[] = { 172, 16, 2, 1 }; // Gateway of the device
 static byte dnsip[] = { 172, 16, 0, 3 }; // IP of the DNS server
 static byte mymac[] = { 0x74, 0x69, 0x69, 0x2D, 0x30, 0x31 }; // MAC address
 const char website[] PROGMEM = "adb.dokku.d.h"; // Server address
-//400 SDCard Global
-//500 RTC Global
-//600 Display Global
+
+//1.3.600 Display Global
 dht DHT;
 LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 
 
 /*------------------------------------------------------------------------------------------------------
-2. Loop and main
+2. Setup and loop
 --------------------------------------------------------------------------------------------------------
 */
 
+//2.1. Setup
 void setup() {
+  delay(50);
   Serial.begin(9600);
-  setup_GPS();
-  setup_AD();
-  setup_Network();
-  setup_SDCard();
-  setup_RTC();
-  setup_Display();
-  Serial.println("Pocetak");
-  
+  setup_GPS();// PROVJERENO-OK
+  setup_AD();// PROVJERENO-OK
+  setup_SDCard();// PROVJERENO-OK
+  Serial.println("Gotov setup");
 }
+
+//2.2. Loop
 void loop() {
+  //2.2.1. Locals
   int code_AD, code_Network, code_SDCard, code_Display;
   String data_RTC, data_GPS;
-  
-  //Polling
-  int cycle = 0;
-  
-  code_AD = polling_AD();
-  data_GPS = polling_GPS();
-  code_Network = polling_Network();
-  code_SDCard = polling_SDCard();
-  data_RTC = polling_RTC();
-  code_Display = polling_Display();
-  Serial.println(code_AD);
-  cycle++;
-  if (cycle > 100)
-    cycle = 0;
 
-  //Decision
-//  switch (code_AD) {
-//    case 200:
-//      //200 - Everything ok
-//      break;
-//    case 201:
-//      //201 - back sensor reacted - object too close
-//      break;
-//    case 202:
-//      //202 - Front sensor reacted - object too close
-//      break;
-//    case 203:
-//      //203 - Both distance sensors reacted - objects on both sides too close
-//      break;
-//    case 204:
-//      //204 - Gyroscope reacted - significant XYZ axis change detected
-//      break;
-//    case 205:
-//      //205 - Back sensor reaction + XYZ change = Back hit detected
-//      break;
-//    case 206:
-//      //206 - Front sensor reaction + XYZ change = Front hit detected
-//      break;
-//    case 207:
-//      //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
-//      break;
-//  }
+  //2.2.2. Polling
+  Serial.print("AD: ");
+  code_AD = polling_AD(); // PROVJERENO-OK
+  Serial.println(code_AD);
+  
+  Serial.print("GPS: ");
+  data_GPS = polling_GPS();
+  Serial.println(data_GPS);
+  
+  Serial.print("RTC: ");
+  data_RTC = polling_RTC(); // PROVJERENO-OK
+  Serial.println(data_RTC);
+  
+  Serial.print("Display: ");
+  code_Display = polling_Display(); //PROVJERENO-OK
+  Serial.println(code_Display);
+  
+  Serial.println();
+  
+  //2.2.3. Decision making
+  //  switch (code_AD) {
+  //    case 200:
+  //      //200 - Everything ok
+  //      break;
+  //    case 201:
+  //      //201 - back sensor reacted - object too close
+  //      break;
+  //    case 202:
+  //      //202 - Front sensor reacted - object too close
+  //      break;
+  //    case 203:
+  //      //203 - Both distance sensors reacted - objects on both sides too close
+  //      break;
+  //    case 204:
+  //      //204 - Gyroscope reacted - significant XYZ axis change detected
+  //      break;
+  //    case 205:
+  //      //205 - Back sensor reaction + XYZ change = Back hit detected
+  //      break;
+  //    case 206:
+  //      //206 - Front sensor reaction + XYZ change = Front hit detected
+  //      break;
+  //    case 207:
+  //      //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
+  //      break;
+  //  }
 }
 
 
@@ -149,10 +168,24 @@ void loop() {
 --------------------------------------------------------------------------------------------------------
 */
 
-//100 - GPS Setup
+//3.100 - GPS Setup
 void setup_GPS() {
   ss.begin(GPSBaud);
+}
 
+//3.200 - AD Setup
+void setup_AD() {
+  Wire.begin();
+  AD_compass = HMC5883L();
+  setupHMC5883L();
+  pinMode(AD_triggerInput_front, OUTPUT);
+  pinMode(AD_echoOutput_front, INPUT);
+  pinMode(AD_triggerInput_back, OUTPUT);
+  pinMode(AD_echoOutput_back, INPUT);;
+}
+
+//3.400 - SDCard Setup
+void setup_SDCard() {
   pinMode(pinModePin, OUTPUT); // Pin 10 mora biti zauzet za SD modul
   SD.begin(chipSelect); // Inicijaliziramo SD karticu i dodijelimo pin
   if (SD.exists("gpsTxtData.txt")) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
@@ -163,46 +196,6 @@ void setup_GPS() {
   }
 }
 
-//200 - AD Setup
-void setup_AD() {
-  
-  Wire.begin();
-  AD_compass = HMC5883L();
-  setupHMC5883L();
-  pinMode(AD_triggerInput_front, OUTPUT);
-  pinMode(AD_echoOutput_front, INPUT);
-  pinMode(AD_triggerInput_back, OUTPUT);
-  pinMode(AD_echoOutput_back, INPUT);;
-}
-
-//300 - Ethernet Setup
-void setup_Network() {
-  
-}
-
-//400 - SDCard Setup
-void setup_SDCard() {
-  
-  pinMode(10, OUTPUT); // Pin 10 mora biti zauzet za SD modul
-  SD.begin(chipSelect); // Inicijaliziramo SD karticu i dodijelimo pin
-  if (SD.exists("gpsTxtData.txt")) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
-    SD.remove("gpsTxtData.txt");
-  }
-  if (SD.exists("gpsCSVData.csv")) { // Ako postoji gspCSVData.csv, izbrisi i ponovo napravi
-    SD.remove("gpsCSVData.csv");
-  }
-}
-
-//500 - RTC Setup
-void setup_RTC() {
-  
-}
-
-//600 - Display Setup
-void setup_Display() {
-  
-}
-
 
 /*------------------------------------------------------------------------------------------------------
 4. Polling sources
@@ -210,11 +203,10 @@ void setup_Display() {
 */
 
 /*----------------------------------------
-100 - GPS Polling
+4.100 - GPS Polling
 -----------------------------------------
 */
 String polling_GPS() {
-  
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
     if (gps.encode(ss.read())) {
@@ -225,6 +217,7 @@ String polling_GPS() {
   {
     return "103;103;103;"; // Vrati kod za gresku
   }
+  return "";
 }
 // Funkcija za ispis podataka
 String getGPSData() {
@@ -255,11 +248,10 @@ String getGPSData() {
 }
 
 /*----------------------------------------
-200 - AD Polling
+4.200 - AD Polling
 -----------------------------------------
 */
 int polling_AD() {
-  
   char accidentState = 0;
   AccidentDetector(&accidentState);
   switch (accidentState) {
@@ -268,43 +260,35 @@ int polling_AD() {
       return 200;
       break;
     case '1':
-      
       //201 - back sensor reacted - object too close
       return 201;
       break;
     case '2':
-      
       //202 - Front sensor reacted - object too close
       return 202;
       break;
     case '3':
-      
       //203 - Both distance sensors reacted - objects on both sides too close
       return 203;
       break;
     case '4':
-      
       //204 - Gyroscope reacted - significant XYZ axis change detected
       return 204;
       break;
     case '5':
-      
       //205 - Back sensor reaction + XYZ change = Back hit detected
       return 205;
       break;
     case '6':
-      
       //206 - Front sensor reaction + XYZ change = Front hit detected
       return 206;
       break;
     case '7':
-      
       //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
       return 207;
       break;
     default:
       //200 - Everything ok
-      
       return 200;
       break;
   }
@@ -424,26 +408,11 @@ void transformation(float uncalibrated_values[3]) {
     calibrated_values[i] = result[i];
 }
 
-/*----------------------------------------
-300 - Ethernet Polling
------------------------------------------
-*/
-int polling_Network() {
-  
-}
-
-int sendData(String csv) {
-  // Format the CSV data to JSON and send it to the server.
-}
-
 
 /*----------------------------------------
-400 - SDCard Polling
+4.400 - SDCard Methods
 -----------------------------------------
 */
-int polling_SDCard() {
-  
-}
 void writeTXTToSD() {
   sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
   sdCardObject.print(gps.location.lng(), 6);
@@ -486,7 +455,6 @@ void setTime(byte second, byte minute, byte hour,
   Wire.endTransmission();
 }
 String polling_RTC() {
-  
   String time = "";
   byte second, minute, hour, dayOfWeek,
        dayOfMonth, month, year;
@@ -531,7 +499,6 @@ String polling_RTC() {
 -----------------------------------------
 */
 int polling_Display() {
-  
   int check = DHT.read11(DHT11_PIN);
   int statusSensor;
   String CSV;
@@ -545,7 +512,8 @@ int polling_Display() {
   lcd.print(" %");
   lcd.setCursor(15, 3); // Ispis error koda
   lcd.print(statusSensor);
-  delay(1000);
+  
+  return statusSensor;
 }
 int CheckSensorStatus(int check) {
   switch (check)
