@@ -46,12 +46,12 @@
 #define DS3231_I2C_ADDRESS 0x68
 //600 Display Defines
 #define DHT11_PIN 6
-#define LCDpin1 7
-#define LCDpin2 8
-#define LCDpin3 9
-#define LCDpin4 10
-#define LCDpin5 11
-#define LCDpin6 12
+#define LCDpin1 11
+#define LCDpin2 12
+#define LCDpin3 13
+#define LCDpin4 14
+#define LCDpin5 15
+#define LCDpin6 16
 
 //100 GPS Global
 static const unsigned long GPSBaud = 9600; // GPS radi na 9600 bauda
@@ -93,7 +93,7 @@ void setup() {
   setup_Display();
 }
 void loop() {
-  int code_AD, code_Network, code_SDCard, code_Display, code_GPS;
+  int code_AD, code_Network, code_SDCard, code_Display;
   String data_RTC, data_GPS;
 
   //Polling
@@ -101,7 +101,7 @@ void loop() {
 
   code_AD = polling_AD();
   if (cycle % 10 == 0) {
-    data_GPS = polling_GPS(&code_GPS);
+    data_GPS = polling_GPS();
     code_Network = polling_Network();
     code_SDCard = polling_SDCard();
     data_RTC = polling_RTC();
@@ -138,6 +138,8 @@ void loop() {
       //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
       break;
   }
+  
+  Serial.print(data_GPS);
 }
 
 
