@@ -27,7 +27,7 @@
 
 
 //100 GPS Defines
-#define RXPin 4 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
+#define RXPin 2 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
 #define TXPin 3
 //200 AD Defines
 #define AD_triggerInput_front 7
@@ -85,61 +85,62 @@ LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 */
 
 void setup() {
+  delay(50);
+  Serial.begin(9600);
   setup_GPS();
   setup_AD();
   setup_Network();
   setup_SDCard();
   setup_RTC();
   setup_Display();
+  
+  
 }
 void loop() {
   int code_AD, code_Network, code_SDCard, code_Display;
   String data_RTC, data_GPS;
-
+  
   //Polling
   int cycle = 0;
-
+  
   code_AD = polling_AD();
-  if (cycle % 10 == 0) {
-    data_GPS = polling_GPS();
-    code_Network = polling_Network();
-    code_SDCard = polling_SDCard();
-    data_RTC = polling_RTC();
-    code_Display = polling_Display();
-  }
+  data_GPS = polling_GPS();
+  code_Network = polling_Network();
+  code_SDCard = polling_SDCard();
+  data_RTC = polling_RTC();
+  code_Display = polling_Display();
+  
   cycle++;
   if (cycle > 100)
     cycle = 0;
 
   //Decision
-  switch (code_AD) {
-    case 200:
-      //200 - Everything ok
-      break;
-    case 201:
-      //201 - back sensor reacted - object too close
-      break;
-    case 202:
-      //202 - Front sensor reacted - object too close
-      break;
-    case 203:
-      //203 - Both distance sensors reacted - objects on both sides too close
-      break;
-    case 204:
-      //204 - Gyroscope reacted - significant XYZ axis change detected
-      break;
-    case 205:
-      //205 - Back sensor reaction + XYZ change = Back hit detected
-      break;
-    case 206:
-      //206 - Front sensor reaction + XYZ change = Front hit detected
-      break;
-    case 207:
-      //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
-      break;
-  }
-  
-  Serial.print(data_GPS);
+//  switch (code_AD) {
+//    case 200:
+//      //200 - Everything ok
+//      break;
+//    case 201:
+//      //201 - back sensor reacted - object too close
+//      break;
+//    case 202:
+//      //202 - Front sensor reacted - object too close
+//      break;
+//    case 203:
+//      //203 - Both distance sensors reacted - objects on both sides too close
+//      break;
+//    case 204:
+//      //204 - Gyroscope reacted - significant XYZ axis change detected
+//      break;
+//    case 205:
+//      //205 - Back sensor reaction + XYZ change = Back hit detected
+//      break;
+//    case 206:
+//      //206 - Front sensor reaction + XYZ change = Front hit detected
+//      break;
+//    case 207:
+//      //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
+//      break;
+//  }
 }
 
 
@@ -151,7 +152,7 @@ void loop() {
 
 //100 - GPS Setup
 void setup_GPS() {
-  Serial.begin(115200);
+  Serial.println("Tu sam");
   ss.begin(GPSBaud);
 
   pinMode(pinModePin, OUTPUT); // Pin 10 mora biti zauzet za SD modul
@@ -166,7 +167,7 @@ void setup_GPS() {
 
 //200 - AD Setup
 void setup_AD() {
-  Serial.begin(9600);
+  
   Wire.begin();
   AD_compass = HMC5883L();
   setupHMC5883L();
@@ -178,10 +179,12 @@ void setup_AD() {
 
 //300 - Ethernet Setup
 void setup_Network() {
+  
 }
 
 //400 - SDCard Setup
 void setup_SDCard() {
+  
   pinMode(10, OUTPUT); // Pin 10 mora biti zauzet za SD modul
   SD.begin(chipSelect); // Inicijaliziramo SD karticu i dodijelimo pin
   if (SD.exists("gpsTxtData.txt")) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
@@ -194,10 +197,12 @@ void setup_SDCard() {
 
 //500 - RTC Setup
 void setup_RTC() {
+  
 }
 
 //600 - Display Setup
 void setup_Display() {
+  
 }
 
 
@@ -211,6 +216,7 @@ void setup_Display() {
 -----------------------------------------
 */
 String polling_GPS() {
+  
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
     if (gps.encode(ss.read())) {
@@ -255,6 +261,7 @@ String getGPSData() {
 -----------------------------------------
 */
 int polling_AD() {
+  
   char accidentState = 0;
   AccidentDetector(&accidentState);
   switch (accidentState) {
@@ -263,43 +270,43 @@ int polling_AD() {
       return 200;
       break;
     case '1':
-      Serial.println("200");
+      
       //201 - back sensor reacted - object too close
       return 201;
       break;
     case '2':
-      Serial.println("201");
+      
       //202 - Front sensor reacted - object too close
       return 202;
       break;
     case '3':
-      Serial.println("202");
+      
       //203 - Both distance sensors reacted - objects on both sides too close
       return 203;
       break;
     case '4':
-      Serial.println("203");
+      
       //204 - Gyroscope reacted - significant XYZ axis change detected
       return 204;
       break;
     case '5':
-      Serial.println("204");
+      
       //205 - Back sensor reaction + XYZ change = Back hit detected
       return 205;
       break;
     case '6':
-      Serial.println("205");
+      
       //206 - Front sensor reaction + XYZ change = Front hit detected
       return 206;
       break;
     case '7':
-      Serial.println("206");
+      
       //207 - Both distance sensors reaction + XYZ change = Hit while surrounded from both sides
       return 207;
       break;
     default:
       //200 - Everything ok
-      Serial.println("Default");
+      
       return 200;
       break;
   }
@@ -424,7 +431,9 @@ void transformation(float uncalibrated_values[3]) {
 -----------------------------------------
 */
 int polling_Network() {
+  
 }
+
 int sendData(String csv) {
   // Format the CSV data to JSON and send it to the server.
 }
@@ -435,6 +444,7 @@ int sendData(String csv) {
 -----------------------------------------
 */
 int polling_SDCard() {
+  
 }
 void writeTXTToSD() {
   sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
@@ -478,6 +488,7 @@ void setTime(byte second, byte minute, byte hour,
   Wire.endTransmission();
 }
 String polling_RTC() {
+  
   String time = "";
   byte second, minute, hour, dayOfWeek,
        dayOfMonth, month, year;
@@ -522,6 +533,7 @@ String polling_RTC() {
 -----------------------------------------
 */
 int polling_Display() {
+  
   int check = DHT.read11(DHT11_PIN);
   int statusSensor;
   String CSV;
