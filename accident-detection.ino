@@ -24,6 +24,7 @@
 
 //1.1.300 Network Includes
 #include <EtherCard.h>
+#include <SoftwareSerial.h>
 
 //1.1.600 Display Includes
 #include <LiquidCrystal.h>
@@ -74,8 +75,8 @@ File sdCardObject; // Varijabla za manipuliranje SD karticom
 
 //1.3.200 AD Global
 HMC5883L AD_compass;
-float AD_xv, AD_yv, AD_zv;
-float AD_xold, AD_yold, AD_zold;
+float AD_Xnew, AD_Ynew, AD_Znew;
+float AD_Xold, AD_Yold, AD_Zold;
 int GLOBAL_cycle = 0;
 
 //1.3.300 Network Global
@@ -126,6 +127,7 @@ void loop() {
     Serial.print("GPS: ");
     data_GPS = polling_GPS(&code_GPS);
     Serial.println(data_GPS);
+    status_CSVWrite = writeCSVToSD(data_RTC, code_AD, code_GPS, data_GPS);
     if(code_GPS == 100)
       status_TXTWrite = writeTXTToSD();
     
@@ -136,8 +138,6 @@ void loop() {
     Serial.print("Display: ");
     code_Display = polling_Display();
     Serial.println(code_Display);
-    
-    
   }
   
   //Update cycle
@@ -153,14 +153,11 @@ void loop() {
   }
   else if (code_AD == 201 || code_AD == 202 || code_AD == 203 || code_AD == 204) {
     //Q2 Warning - one of the sensors reacted
-    //Backup data to SD card
     if(code_GPS == 100)
       status_TXTWrite = writeTXTToSD();
     else{
         //Ispisati na LCDu ili negdje da se GPS podize
     }
-    
-    status_CSVWrite = writeCSVToSD();
   }
   else if (code_AD == 205 || code_AD == 206 || code_AD == 207) {
     //Q3 Begin 20 second countdown
@@ -383,18 +380,18 @@ bool ReadGyro() {
   //xv,yv,zv are variables for the XYZ axis values
   //critical_gyro_up and down are global constants which adjust algorithm sensitivity to movement
   bool gyroChange = false;
-  if (abs(AD_xv) > abs(AD_xold * AD_critical_gyro_up) ||
-      abs(AD_xv) < abs(AD_xold * AD_critical_gyro_down) ||
-      abs(AD_yv) > abs(AD_yold * AD_critical_gyro_up) ||
-      abs(AD_yv) < abs(AD_yold * AD_critical_gyro_down) ||
-      abs(AD_zv) > abs(AD_zold * AD_critical_gyro_up) ||
-      abs(AD_zv) < abs(AD_zold * AD_critical_gyro_down)
+  if (abs(AD_Xnew) > abs(AD_Xold * AD_critical_gyro_up) ||
+      abs(AD_Xnew) < abs(AD_Xold * AD_critical_gyro_down) ||
+      abs(AD_Ynew) > abs(AD_Yold * AD_critical_gyro_up) ||
+      abs(AD_Ynew) < abs(AD_Yold * AD_critical_gyro_down) ||
+      abs(AD_Znew) > abs(AD_Zold * AD_critical_gyro_up) ||
+      abs(AD_Znew) < abs(AD_Zold * AD_critical_gyro_down)
      ) {
     gyroChange = true;
   }
-  AD_xold = AD_xv;
-  AD_yold = AD_yv;
-  AD_zold = AD_zv;
+  AD_Xold = AD_Xnew;
+  AD_Yold = AD_Ynew;
+  AD_Zold = AD_Znew;
   return gyroChange;
 }
 //Calibration functions
@@ -406,9 +403,9 @@ void setupHMC5883L()
 void getHeading()
 {
   MagnetometerRaw raw = AD_compass.ReadRawAxis();
-  AD_xv = (float)raw.XAxis;
-  AD_yv = (float)raw.YAxis;
-  AD_zv = (float)raw.ZAxis;
+  AD_Xnew = (float)raw.XAxis;
+  AD_Ynew = (float)raw.YAxis;
+  AD_Znew = (float)raw.ZAxis;
 }
 float calibrated_values[3];
 void transformation(float uncalibrated_values[3]) {
@@ -452,9 +449,16 @@ int writeTXTToSD() {
   else
     return -1; //Nije uspio otvoriti
 }
-void writeCSVToSD() {
-  sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
 
+int writeCSVToSD(String data_RTC, int code_AD, int code_GPS, String data_GPS){
+  sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
+  if(sdCardObject){
+    sdCardObject.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS);
+    sdCardObject.close();
+    return 0; //Pisanje proslo ok
+  }
+  else
+    return -1; //Nije uspio otvoriti
 }
 /*----------------------------------------
 500 - RTC Polling
