@@ -24,7 +24,6 @@
 
 //1.1.300 Network Includes
 #include <EtherCard.h>
-#include <SoftwareSerial.h>
 
 //1.1.600 Display Includes
 #include <LiquidCrystal.h>
@@ -108,7 +107,7 @@ void setup() {
   setup_AD();
   setup_SDCard();
   Serial.println("Gotov setup");
-  GLOBAL_cycle = 0;
+  GLOBAL_cycle = 0; //Globalna varijabla za polling
 }
 
 //2.2. Loop
@@ -116,54 +115,54 @@ void loop() {
   //2.2.1. Locals
   int code_AD, code_Network, code_SDCard, code_Display, code_GPS; //Povratni code pojedinih sustava
   String data_RTC, data_GPS; //Povratni podaci pojedinih sustava
-  int status_TXTWrite, status_CSVWrite; //Varijable za provjeravanje je li uspjesno zapisano na SD karticu
-  
-  //2.2.2. Polling
-  Serial.print("AD: ");
+  int status_TXTWrite = 0, status_CSVWrite = 1; //Varijable za provjeravanje je li uspjesno zapisano na SD karticu
+  bool accident_detected = false; //Provjerava je li doslo do nesrece
+
+
+  //2.2.2. Polling and decision based on code_AD
   code_AD = polling_AD();
-  Serial.println(code_AD);
+  ss.println(code_AD); //Probni ispis - IZBRISATI NAKON DEBUGGA
 
-  if (GLOBAL_cycle %  AD_cycles == 0) {
-    Serial.print("GPS: ");
-    data_GPS = polling_GPS(&code_GPS);
-    Serial.println(data_GPS);
-    status_CSVWrite = writeCSVToSD(data_RTC, code_AD, code_GPS, data_GPS);
-    if(code_GPS == 100)
-      status_TXTWrite = writeTXTToSD();
-    
-    Serial.print("RTC: ");
-    data_RTC = polling_RTC();
-    Serial.println(data_RTC);
+  if (code_AD >= 200 && code_AD <= 204) {
+    //Everything ok - polling other systems and writing to SD
+    if (GLOBAL_cycle %  AD_cycles == 0) {
+      //Polling
+      data_RTC = polling_RTC();
+      data_GPS = polling_GPS(&code_GPS);
+      code_Display = polling_Display();
 
-    Serial.print("Display: ");
-    code_Display = polling_Display();
-    Serial.println(code_Display);
+      //Writing to SD
+      status_CSVWrite = writeCSVToSD(data_RTC, code_AD, code_GPS, data_GPS);
+      if (code_GPS == 100)
+        status_TXTWrite = writeTXTToSD();
+
+      ss.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS); //Probni ispis - IZBRISATI NAKON DEBUGGA
+    }
   }
-  
-  //Update cycle
+  else if (code_AD >= 205 && code_AD <= 207) {
+    //Zapocni odbrojavanje
+    accident_detected = true;
+    int accident_counter = 20;
+    while (accident_counter > 0) {
+      //Ispisi na LCD poruku korisniku da mora pritisnuti gumb ako je sve ok
+      //Ocekuj pritisak gumba za nastavak normalnog rada
+      //Ako gumb pritisnut accident_detected = false; break;
+      //Ako u 20 sekundi nije pritisnut biti ce i dalje true nakon ove while petlje
+      accident_counter--;
+      delay(1000); //Cekamo 20 sekundi
+    }
+
+    if (accident_detected == true) {
+      //Ako tu ulazimo korisnik u 20 sekundi nije stisnuo gumb, dakle nesreca se dogodila
+      //Salji na server
+    }
+  }
+
+  //2.2.4. Cycle update
   if (GLOBAL_cycle > 100)
     GLOBAL_cycle = 0;
   else
     GLOBAL_cycle++;
-
-  //2.2.3. Decision making
-  if (code_AD == 200) {
-    //Q0 Everything ok
-    //Keep doing business as usual
-  }
-  else if (code_AD == 201 || code_AD == 202 || code_AD == 203 || code_AD == 204) {
-    //Q2 Warning - one of the sensors reacted
-    if(code_GPS == 100)
-      status_TXTWrite = writeTXTToSD();
-    else{
-        //Ispisati na LCDu ili negdje da se GPS podize
-    }
-  }
-  else if (code_AD == 205 || code_AD == 206 || code_AD == 207) {
-    //Q3 Begin 20 second countdown
-    //If user resets on button return to 200
-    //else if countdown goes to 0 report accident to server
-  }
 }
 
 /*------------------------------------------------------------------------------------------------------
@@ -228,7 +227,7 @@ String polling_GPS(int* code_GPS) {
 String getGPSData(int* code_GPS) {
   bool locationIsValid = false;
   bool speedIsValid = false;
-  
+
   // String koji ce biti vracen sa ili bez error kodova
   String gpsDataString = "";
   String gpsDataCode = "";
@@ -249,20 +248,20 @@ String getGPSData(int* code_GPS) {
   else {
     gpsDataString += "x;";
   }
-  
-  if(locationIsValid && speedIsValid){
+
+  if (locationIsValid && speedIsValid) {
     *code_GPS = 100;
     gpsDataCode = "100;";
   }
-  else if(locationIsValid && !speedIsValid) {
+  else if (locationIsValid && !speedIsValid) {
     *code_GPS = 102;
     gpsDataCode = "102;";
   }
-  else if(!locationIsValid && speedIsValid){
+  else if (!locationIsValid && speedIsValid) {
     *code_GPS = 101;
     gpsDataCode = "101;";
   }
-  else{
+  else {
     *code_GPS = 103;
     gpsDataCode = "103;";
   }
@@ -438,7 +437,7 @@ void transformation(float uncalibrated_values[3]) {
 */
 int writeTXTToSD() {
   sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
-  if(sdCardObject){
+  if (sdCardObject) {
     sdCardObject.print(gps.location.lng(), 6); //Na 6 decimala
     sdCardObject.print(",");
     sdCardObject.print(gps.location.lat(), 6);
@@ -450,9 +449,9 @@ int writeTXTToSD() {
     return -1; //Nije uspio otvoriti
 }
 
-int writeCSVToSD(String data_RTC, int code_AD, int code_GPS, String data_GPS){
+int writeCSVToSD(String data_RTC, int code_AD, int code_GPS, String data_GPS) {
   sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
-  if(sdCardObject){
+  if (sdCardObject) { //Ako je uspio otvoriti, inace SD.open vraca false
     sdCardObject.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS);
     sdCardObject.close();
     return 0; //Pisanje proslo ok
@@ -531,11 +530,8 @@ String polling_RTC() {
 -----------------------------------------
 */
 int polling_Display() {
-  int check = DHT.read11(DHT11_PIN);
-  int statusSensor;
-  String CSV;
-  statusSensor = CheckSensorStatus(check); // Dohvaća status senzora
-  CSV = CSVFormat(statusSensor); // Pravi CSV format koji će se kasnije slati na server
+  int statusSensor = 0;
+  
   lcd.setCursor(13, 0); // Ispis temperature
   lcd.print(DHT.temperature, 1);
   lcd.print(" C");
@@ -546,42 +542,4 @@ int polling_Display() {
   lcd.print(statusSensor);
 
   return statusSensor;
-}
-int CheckSensorStatus(int check) {
-  switch (check)
-  {
-    case DHTLIB_OK: // Sve je u redu s komunikacijom
-      lcd.setCursor(0, 3);
-      lcd.print("OK");
-      return 400;
-    case DHTLIB_ERROR_CHECKSUM: // Primljeni su krivi podaci
-      lcd.setCursor(0, 3);
-      lcd.print("Checksum error");
-      return 401;
-    case DHTLIB_ERROR_TIMEOUT: // Komunikacija nije uspijela s senzorom
-      lcd.setCursor(0, 3);
-      lcd.print("Time out error");
-      return 402;
-    case DHTLIB_ERROR_CONNECT: // Jedan od pin-ova (vrlo vjerovatno data pin) je odspojen
-      lcd.setCursor(0, 3);
-      lcd.print("Connect error");
-      return 403;
-    case DHTLIB_ERROR_ACK_L: // Data pin spojen na GND ili niski napon
-      lcd.setCursor(0, 3);
-      lcd.print("Ack Low error");
-      return 404;
-    case DHTLIB_ERROR_ACK_H: // Data pin spojen na visoki napon (+3.3V ili vise)
-      lcd.setCursor(0, 3);
-      lcd.print("Ack High error");
-      return 405;
-    default:
-      lcd.setCursor(0, 3);
-      lcd.print("Unknown error");
-      return 410;
-  }
-}
-String CSVFormat(int statusSensor) {
-  String toReturn;
-  toReturn = toReturn + "Temperatura" + ";" + DHT.temperature + ";" + "Vlaznost" + DHT.humidity + ";" + "Status" + statusSensor;
-  return toReturn;
 }
