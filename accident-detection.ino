@@ -221,33 +221,56 @@ String polling_GPS(int* code_GPS) {
   }
   if (millis() > 5000 && gps.charsProcessed() < 10) // GPS ne radi
   {
-    return "103;103;103;"; // Vrati kod za gresku
+    *code_GPS = 104;
+    return "104;x;x;x;"; // Vrati kod za gresku
   }
-  return "";
+  *code_GPS = 105;
+  return "105;x;x;x;";
 }
 // Funkcija za ispis podataka
 String getGPSData(int* code_GPS) {
+  bool locationIsValid = false;
+  bool speedIsValid = false;
+  
   // String koji ce biti vracen sa ili bez error kodova
   String gpsDataString = "";
+  String gpsDataCode = "";
 
   // Provjere
   if (gps.location.isValid()) {
+    locationIsValid = true;
     gpsDataString += (String)gps.location.lat() + ";" + (String)gps.location.lng() + ";";
-    *code_GPS = 100;
   }
   else {
-    gpsDataString += "101;101;";
-    *code_GPS = 101;
+    gpsDataString += "x;x;";
   }
 
   if (gps.speed.isValid()) {
+    speedIsValid = true;
     gpsDataString += (String)gps.speed.kmph() + ";";
   }
   else {
-    gpsDataString += "102;";
+    gpsDataString += "x;";
+  }
+  
+  if(locationIsValid && speedIsValid){
+    *code_GPS = 100;
+    gpsDataCode = "100;";
+  }
+  else if(locationIsValid && !speedIsValid) {
+    *code_GPS = 102;
+    gpsDataCode = "102;";
+  }
+  else if(!locationIsValid && speedIsValid){
+    *code_GPS = 101;
+    gpsDataCode = "101;";
+  }
+  else{
+    *code_GPS = 103;
+    gpsDataCode = "103;";
   }
 
-  return gpsDataString;
+  return gpsDataCode + gpsDataString;
 }
 
 /*----------------------------------------
