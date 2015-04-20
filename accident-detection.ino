@@ -56,7 +56,7 @@
 #define DS3231_I2C_ADDRESS 0x68
 
 //1.2.600 Display Defines
-#define DHT11_PIN 6
+#define cancelButton 37
 #define LCDpin1 11
 #define LCDpin2 12
 #define LCDpin3 13
@@ -106,6 +106,7 @@ void setup() {
   setup_GPS();
   setup_AD();
   setup_SDCard();
+  pinMode(cancelButton, INPUT);
   Serial.println("Gotov setup");
   GLOBAL_cycle = 0; //Globalna varijabla za polling
 }
@@ -115,13 +116,14 @@ void loop() {
   //2.2.1. Locals
   int code_AD, code_Network, code_SDCard, code_Display, code_GPS; //Povratni code pojedinih sustava
   String data_RTC, data_GPS; //Povratni podaci pojedinih sustava
-  int status_TXTWrite = 0, status_CSVWrite = 1; //Varijable za provjeravanje je li uspjesno zapisano na SD karticu
-  bool accident_detected = false; //Provjerava je li doslo do nesrece
-
+  int status_TXTWrite = 0, status_CSVWrite = 0; //Varijable za provjeravanje je li uspjesno zapisano na SD karticu
+  bool accident_detected; //Provjerava je li doslo do nesrece
+  accident_detected = true;
 
   //2.2.2. Polling and decision based on code_AD
   code_AD = polling_AD();
   ss.println(code_AD); //Probni ispis - IZBRISATI NAKON DEBUGGA
+  Serial.println(code_AD); //Probni ispis - IZBRISATI NAKON DEBUGGA
 
   if (code_AD >= 200 && code_AD <= 204) {
     //Everything ok - polling other systems and writing to SD
@@ -129,32 +131,41 @@ void loop() {
       //Polling
       data_RTC = polling_RTC();
       data_GPS = polling_GPS(&code_GPS);
-      code_Display = polling_Display();
+      polling_Display((String)code_AD + (String)GLOBAL_cycle);
 
       //Writing to SD
-      status_CSVWrite = writeCSVToSD(data_RTC, code_AD, code_GPS, data_GPS);
-      if (code_GPS == 100)
-        status_TXTWrite = writeTXTToSD();
+      status_CSVWrite = writeCSVToSD(data_RTC, code_AD, data_GPS);
+      Serial.println(status_CSVWrite);
+      //if (code_GPS == 100)
+//      status_TXTWrite = writeTXTToSD();
 
       ss.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS); //Probni ispis - IZBRISATI NAKON DEBUGGA
+      Serial.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS); //Probni ispis - IZBRISATI NAKON DEBUGGA
     }
   }
   else if (code_AD >= 205 && code_AD <= 207) {
     //Zapocni odbrojavanje
     accident_detected = true;
     int accident_counter = 20;
+    int buttonState = LOW;
     while (accident_counter > 0) {
       //Ispisi na LCD poruku korisniku da mora pritisnuti gumb ako je sve ok
       //Ocekuj pritisak gumba za nastavak normalnog rada
       //Ako gumb pritisnut accident_detected = false; break;
       //Ako u 20 sekundi nije pritisnut biti ce i dalje true nakon ove while petlje
+      polling_Display((String) accident_counter);
       accident_counter--;
+      buttonState = digitalRead(cancelButton);
+      if (buttonState == HIGH) {
+        accident_detected = false;
+        break;
+      }
       delay(1000); //Cekamo 20 sekundi
     }
 
     if (accident_detected == true) {
       //Ako tu ulazimo korisnik u 20 sekundi nije stisnuo gumb, dakle nesreca se dogodila
-      //Salji na server
+      polling_Display("Saljem na server"); //Zamijeniti za kod koji salje na server
     }
   }
 
@@ -449,11 +460,11 @@ int writeTXTToSD() {
     return -1; //Nije uspio otvoriti
 }
 
-int writeCSVToSD(String data_RTC, int code_AD, int code_GPS, String data_GPS) {
-  sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
-  if (sdCardObject) { //Ako je uspio otvoriti, inace SD.open vraca false
-    sdCardObject.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS);
-    sdCardObject.close();
+int writeCSVToSD(String data_RTC, int code_AD, String data_GPS) {
+  File sdCardObject2 = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
+  if (sdCardObject2) { //Ako je uspio otvoriti, inace SD.open vraca false
+    sdCardObject2.println(data_RTC + ";" + (String)code_AD + + ";" + data_GPS);
+    sdCardObject2.close();
     return 0; //Pisanje proslo ok
   }
   else
@@ -529,17 +540,7 @@ String polling_RTC() {
 600 - Display Polling
 -----------------------------------------
 */
-int polling_Display() {
-  int statusSensor = 0;
-  
-  lcd.setCursor(13, 0); // Ispis temperature
-  lcd.print(DHT.temperature, 1);
-  lcd.print(" C");
-  lcd.setCursor(13, 1); // Ispis vlažnosti
-  lcd.print(DHT.humidity, 1);
-  lcd.print(" %");
-  lcd.setCursor(15, 3); // Ispis error koda
-  lcd.print(statusSensor);
-
-  return statusSensor;
+void polling_Display(String ulaz) {
+  lcd.setCursor(0, 0); // Ispis temperature
+  lcd.print(ulaz);
 }
