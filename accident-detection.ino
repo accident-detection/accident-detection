@@ -113,27 +113,34 @@ void setup() {
 //2.2. Loop
 void loop() {
   //2.2.1. Locals
-  int code_AD, code_Network, code_SDCard, code_Display;
-  String data_RTC, data_GPS;
-
+  int code_AD, code_Network, code_SDCard, code_Display, code_GPS; //Povratni code pojedinih sustava
+  String data_RTC, data_GPS; //Povratni podaci pojedinih sustava
+  int status_TXTWrite, status_CSVWrite; //Varijable za provjeravanje je li uspjesno zapisano na SD karticu
+  
   //2.2.2. Polling
   Serial.print("AD: ");
-  code_AD = polling_AD(); // PROVJERENO-OK
+  code_AD = polling_AD();
   Serial.println(code_AD);
 
   if (GLOBAL_cycle %  AD_cycles == 0) {
     Serial.print("GPS: ");
-    data_GPS = polling_GPS();
+    data_GPS = polling_GPS(&code_GPS);
     Serial.println(data_GPS);
-
+    if(code_GPS == 100)
+      status_TXTWrite = writeTXTToSD();
+    
     Serial.print("RTC: ");
-    data_RTC = polling_RTC(); // PROVJERENO-OK
+    data_RTC = polling_RTC();
     Serial.println(data_RTC);
 
     Serial.print("Display: ");
-    code_Display = polling_Display(); //PROVJERENO-OK
+    code_Display = polling_Display();
     Serial.println(code_Display);
+    
+    
   }
+  
+  //Update cycle
   if (GLOBAL_cycle > 100)
     GLOBAL_cycle = 0;
   else
@@ -147,6 +154,13 @@ void loop() {
   else if (code_AD == 201 || code_AD == 202 || code_AD == 203 || code_AD == 204) {
     //Q2 Warning - one of the sensors reacted
     //Backup data to SD card
+    if(code_GPS == 100)
+      status_TXTWrite = writeTXTToSD();
+    else{
+        //Ispisati na LCDu ili negdje da se GPS podize
+    }
+    
+    status_CSVWrite = writeCSVToSD();
   }
   else if (code_AD == 205 || code_AD == 206 || code_AD == 207) {
     //Q3 Begin 20 second countdown
@@ -198,11 +212,11 @@ void setup_SDCard() {
 4.100 - GPS Polling
 -----------------------------------------
 */
-String polling_GPS() {
+String polling_GPS(int* code_GPS) {
   // Nakon svake NMEA recenice ispisuju se podaci
   while (ss.available() > 0) {
     if (gps.encode(ss.read())) {
-      return getGPSData();
+      return getGPSData(code_GPS);
     }
   }
   if (millis() > 5000 && gps.charsProcessed() < 10) // GPS ne radi
@@ -212,21 +226,18 @@ String polling_GPS() {
   return "";
 }
 // Funkcija za ispis podataka
-String getGPSData() {
+String getGPSData(int* code_GPS) {
   // String koji ce biti vracen sa ili bez error kodova
   String gpsDataString = "";
 
   // Provjere
   if (gps.location.isValid()) {
     gpsDataString += (String)gps.location.lat() + ";" + (String)gps.location.lng() + ";";
-
-    if (gps.speed.isValid()) {
-      writeTXTToSD();
-      writeCSVToSD();
-    }
+    *code_GPS = 100;
   }
   else {
-    gpsDataString += "102;102;";
+    gpsDataString += "101;101;";
+    *code_GPS = 101;
   }
 
   if (gps.speed.isValid()) {
@@ -405,22 +416,22 @@ void transformation(float uncalibrated_values[3]) {
 4.400 - SDCard Methods
 -----------------------------------------
 */
-void writeTXTToSD() {
+int writeTXTToSD() {
   sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
-  sdCardObject.print(gps.location.lng(), 6);
-  sdCardObject.print(",");
-  sdCardObject.print(gps.location.lat(), 6);
-  sdCardObject.print(" ");
-  sdCardObject.close();
+  if(sdCardObject){
+    sdCardObject.print(gps.location.lng(), 6); //Na 6 decimala
+    sdCardObject.print(",");
+    sdCardObject.print(gps.location.lat(), 6);
+    sdCardObject.print(" ");
+    sdCardObject.close();
+    return 0; //Pisanje proslo ok
+  }
+  else
+    return -1; //Nije uspio otvoriti
 }
 void writeCSVToSD() {
   sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
-  sdCardObject.print(gps.location.lng(), 6);
-  sdCardObject.print(";");
-  sdCardObject.print(gps.location.lat(), 6);
-  sdCardObject.print(";");
-  sdCardObject.print(gps.speed.kmph());
-  sdCardObject.print(";");
+
 }
 /*----------------------------------------
 500 - RTC Polling
