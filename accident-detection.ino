@@ -114,7 +114,7 @@ void loop() {
       //Polling
       data_RTC = polling_RTC();
       data_GPS = polling_GPS(&code_GPS);
-      polling_Display((String)code_AD + (String)GLOBAL_cycle);
+      polling_Display("STATUS: OK");
 
       //Writing to SD
       status_CSVWrite = writeCSVToSD(data_RTC, code_AD, data_GPS);
