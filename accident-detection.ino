@@ -22,13 +22,8 @@
 #include "Wire.h"
 #include "HMC5883L.h"
 
-//1.1.300 Network Includes
-#include <EtherCard.h>
-
 //1.1.600 Display Includes
 #include <LiquidCrystal.h>
-#include <dht.h>
-
 
 //1.2. Defines
 //1.2.100 GPS Defines
@@ -78,19 +73,7 @@ float AD_Xnew, AD_Ynew, AD_Znew;
 float AD_Xold, AD_Yold, AD_Zold;
 int GLOBAL_cycle = 0;
 
-//1.3.300 Network Global
-static uint32_t timer;
-static byte session;
-Stash stash;
-byte Ethernet::buffer[700];
-static byte myip[] = { 172, 16, 2, 2 }; // IP of the device
-static byte gwip[] = { 172, 16, 2, 1 }; // Gateway of the device
-static byte dnsip[] = { 172, 16, 0, 3 }; // IP of the DNS server
-static byte mymac[] = { 0x74, 0x69, 0x69, 0x2D, 0x30, 0x31 }; // MAC address
-const char website[] PROGMEM = "adb.dokku.d.h"; // Server address
-
 //1.3.600 Display Global
-dht DHT;
 LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 
 
@@ -148,25 +131,32 @@ void loop() {
     accident_detected = true;
     int accident_counter = 20;
     int buttonState = LOW;
+    
+    display_Clear();
     while (accident_counter > 0) {
       //Ispisi na LCD poruku korisniku da mora pritisnuti gumb ako je sve ok
       //Ocekuj pritisak gumba za nastavak normalnog rada
       //Ako gumb pritisnut accident_detected = false; break;
       //Ako u 20 sekundi nije pritisnut biti ce i dalje true nakon ove while petlje
-      polling_Display((String) accident_counter);
       accident_counter--;
+      polling_Display("Slanje za: ", 11, (String)accident_counter);
+      //polling_Display(1, "Stisni gumb!");
       buttonState = digitalRead(cancelButton);
       if (buttonState == HIGH) {
         accident_detected = false;
         break;
       }
       delay(1000); //Cekamo 20 sekundi
+      display_Clear();
     }
 
     if (accident_detected == true) {
       //Ako tu ulazimo korisnik u 20 sekundi nije stisnuo gumb, dakle nesreca se dogodila
-      polling_Display("Saljem na server"); //Zamijeniti za kod koji salje na server
+      polling_Display("Poslano serveru!");
+      delay(5000);
     }
+    
+    display_Clear();
   }
 
   //2.2.4. Cycle update
@@ -541,6 +531,22 @@ String polling_RTC() {
 -----------------------------------------
 */
 void polling_Display(String ulaz) {
-  lcd.setCursor(0, 0); // Ispis temperature
+  lcd.setCursor(0, 0);
   lcd.print(ulaz);
+}
+
+void polling_Display(String ulaz, int offset, String ulaz2) {
+  lcd.print(ulaz);
+  lcd.setCursor(offset, 0);
+  lcd.print(ulaz2);
+}
+
+void polling_Display(int line, String ulaz) {
+  lcd.setCursor(0, line);
+  lcd.print(ulaz);
+  lcd.setCursor(0, 0);
+}
+
+void display_Clear() {
+  lcd.clear();
 }
