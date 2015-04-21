@@ -43,10 +43,6 @@
 //1.2.300 Network Defines
 #define DEBUG true
 
-//1.2.400 SD Define
-#define chipSelect 5 // CS pin SD kartice je spojen na pin 5
-#define pinModePin 10
-
 //1.2.500 RTC Defines
 #define DS3231_I2C_ADDRESS 0x68
 
@@ -68,6 +64,9 @@ SoftwareSerial ss(RXPin, TXPin); // Serija sa GPS modulom
 File sdCardObject; // Varijabla za manipuliranje SD karticom
 
 SoftwareSerial net(17, 18); // Serija sa GPS modulom
+
+//1.2.400 SD Define
+int chipSelect = 5 // CS pin SD kartice je spojen na pin 5
 
 //1.3.200 AD Global
 HMC5883L AD_compass;
@@ -190,7 +189,7 @@ void setup_AD() {
 
 //3.400 - SDCard Setup
 void setup_SDCard() {
-  pinMode(pinModePin, OUTPUT); // Pin 10 mora biti zauzet za SD modul
+  pinMode(10, OUTPUT); // Pin 10 mora biti zauzet za SD modul
   SD.begin(chipSelect); // Inicijaliziramo SD karticu i dodijelimo pin
   if (SD.exists("gpsTxtData.txt")) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
     SD.remove("gpsTxtData.txt");
@@ -452,10 +451,10 @@ int writeTXTToSD() {
 }
 
 int writeCSVToSD(String data_RTC, int code_AD, String data_GPS) {
-  File sdCardObject2 = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
-  if (sdCardObject2) { //Ako je uspio otvoriti, inace SD.open vraca false
-    sdCardObject2.println(data_RTC + ";" + (String)code_AD + + ";" + data_GPS);
-    sdCardObject2.close();
+  sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
+  if (sdCardObject) { //Ako je uspio otvoriti, inace SD.open vraca false
+    sdCardObject.print(data_RTC + ";" + (String)code_AD + ";" + data_GPS);
+    sdCardObject.close();
     return 0; //Pisanje proslo ok
   }
   else
