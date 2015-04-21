@@ -67,6 +67,8 @@ TinyGPSPlus gps; // Instanca TinyGPS objekta
 SoftwareSerial ss(RXPin, TXPin); // Serija sa GPS modulom
 File sdCardObject; // Varijabla za manipuliranje SD karticom
 
+SoftwareSerial net(17, 18); // Serija sa GPS modulom
+
 //1.3.200 AD Global
 HMC5883L AD_compass;
 float AD_Xnew, AD_Ynew, AD_Znew;
@@ -86,6 +88,7 @@ LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 void setup() {
   delay(50);
   Serial.begin(9600);
+  net.begin(19200);
   setup_GPS();
   setup_AD();
   setup_SDCard();
@@ -105,7 +108,6 @@ void loop() {
 
   //2.2.2. Polling and decision based on code_AD
   code_AD = polling_AD();
-  ss.println(code_AD); //Probni ispis - IZBRISATI NAKON DEBUGGA
   Serial.println(code_AD); //Probni ispis - IZBRISATI NAKON DEBUGGA
 
   if (code_AD >= 200 && code_AD <= 204) {
@@ -121,8 +123,7 @@ void loop() {
       Serial.println(status_CSVWrite);
       //if (code_GPS == 100)
 //      status_TXTWrite = writeTXTToSD();
-
-      ss.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS); //Probni ispis - IZBRISATI NAKON DEBUGGA
+      net.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS);
       Serial.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS); //Probni ispis - IZBRISATI NAKON DEBUGGA
     }
   }
