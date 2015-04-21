@@ -66,7 +66,7 @@ File sdCardObject; // Varijabla za manipuliranje SD karticom
 SoftwareSerial net(17, 18); // Serija sa GPS modulom
 
 //1.2.400 SD Define
-int chipSelect = 5 // CS pin SD kartice je spojen na pin 5
+int chipSelect = 5; // CS pin SD kartice je spojen na pin 5
 
 //1.3.200 AD Global
 HMC5883L AD_compass;
@@ -131,7 +131,7 @@ void loop() {
     accident_detected = true;
     int accident_counter = 20;
     int buttonState = LOW;
-    
+
     display_Clear();
     while (accident_counter > 0) {
       //Ispisi na LCD poruku korisniku da mora pritisnuti gumb ako je sve ok
@@ -155,7 +155,7 @@ void loop() {
       polling_Display("Poslano serveru!");
       delay(5000);
     }
-    
+
     display_Clear();
   }
 
