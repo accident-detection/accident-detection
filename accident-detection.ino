@@ -31,7 +31,6 @@
 #define TXPin 3
 
 //1.2.200 AD Defines
-#define AD_cycles 10
 #define AD_triggerInput_front 7
 #define AD_echoOutput_front 6
 #define AD_triggerInput_back 9
@@ -39,6 +38,7 @@
 #define AD_critical_distance 20
 #define AD_critical_gyro_up 1.20
 #define AD_critical_gyro_down 0.80
+#define AD_cycles 10
 
 //1.2.300 Network Defines
 #define DEBUG true
@@ -66,13 +66,17 @@ File sdCardObject; // Varijabla za manipuliranje SD karticom
 SoftwareSerial net(17, 18); // Serija sa GPS modulom
 
 //1.2.400 SD Define
-int chipSelect = 5; // CS pin SD kartice je spojen na pin 5
+int chipSelect = 4; // CS pin SD kartice je spojen na pin 5
 
 //1.3.200 AD Global
 HMC5883L AD_compass;
 float AD_Xnew, AD_Ynew, AD_Znew;
 float AD_Xold, AD_Yold, AD_Zold;
 int GLOBAL_cycle = 0;
+
+//1.3.400 SD Global
+char* txtFileName = "txtfile.txt";
+char* csvFileName = "csvfile.csv";
 
 //1.3.600 Display Global
 LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
@@ -83,18 +87,18 @@ LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 --------------------------------------------------------------------------------------------------------
 */
 
+
 //2.1. Setup
 void setup() {
-  delay(50);
   Serial.begin(9600);
   net.begin(19200);
+  setup_SDCard();
   setup_GPS();
   setup_AD();
-  setup_SDCard();
-  pinMode(cancelButton, INPUT);
-  Serial.println("Gotov setup");
+  pinMode(cancelButton, INPUT); //Inicijalizacija gumba za prekid slanja na server
   GLOBAL_cycle = 0; //Globalna varijabla za polling
 }
+
 
 //2.2. Loop
 void loop() {
@@ -102,45 +106,40 @@ void loop() {
   int code_AD, code_Network, code_SDCard, code_Display, code_GPS; //Povratni code pojedinih sustava
   String data_RTC, data_GPS; //Povratni podaci pojedinih sustava
   int status_TXTWrite = 0, status_CSVWrite = 0; //Varijable za provjeravanje je li uspjesno zapisano na SD karticu
+  int accident_counter;
+  int buttonState;
   bool accident_detected; //Provjerava je li doslo do nesrece
-  accident_detected = true;
+
+
 
   //2.2.2. Polling and decision based on code_AD
   code_AD = polling_AD();
-  Serial.println(code_AD); //Probni ispis - IZBRISATI NAKON DEBUGGA
-
-  if (code_AD >= 200 && code_AD <= 204) {
-    //Everything ok - polling other systems and writing to SD
+  if ((code_AD >= 200 && code_AD <= 204) || GLOBAL_cycle < 10) { //Everything ok - polling other systems and writing to SD
     if (GLOBAL_cycle %  AD_cycles == 0) {
-      //Polling
+      //Polling other systems
       data_RTC = polling_RTC();
       data_GPS = polling_GPS(&code_GPS);
-      polling_Display("STATUS: OK");
+      polling_Display("Status: OK");
 
       //Writing to SD
-      status_CSVWrite = writeCSVToSD(data_RTC, code_AD, data_GPS);
-      Serial.println(status_CSVWrite);
+      writeCSVToSD(csvFileName, data_RTC, code_AD, data_GPS);
       //if (code_GPS == 100)
-//      status_TXTWrite = writeTXTToSD();
+      writeTXTToSD(txtFileName);
+
+      //Writing to other arduino for ethernet test
       net.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS);
-      Serial.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS); //Probni ispis - IZBRISATI NAKON DEBUGGA
     }
   }
   else if (code_AD >= 205 && code_AD <= 207) {
     //Zapocni odbrojavanje
     accident_detected = true;
-    int accident_counter = 20;
-    int buttonState = LOW;
+    accident_counter = 20;
+    buttonState = LOW;
 
     display_Clear();
     while (accident_counter > 0) {
-      //Ispisi na LCD poruku korisniku da mora pritisnuti gumb ako je sve ok
-      //Ocekuj pritisak gumba za nastavak normalnog rada
-      //Ako gumb pritisnut accident_detected = false; break;
-      //Ako u 20 sekundi nije pritisnut biti ce i dalje true nakon ove while petlje
       accident_counter--;
       polling_Display("Slanje za: ", 11, (String)accident_counter);
-      //polling_Display(1, "Stisni gumb!");
       buttonState = digitalRead(cancelButton);
       if (buttonState == HIGH) {
         accident_detected = false;
@@ -161,7 +160,7 @@ void loop() {
 
   //2.2.4. Cycle update
   if (GLOBAL_cycle > 100)
-    GLOBAL_cycle = 0;
+    GLOBAL_cycle = 10;
   else
     GLOBAL_cycle++;
 }
@@ -189,13 +188,18 @@ void setup_AD() {
 
 //3.400 - SDCard Setup
 void setup_SDCard() {
+  Serial.print("Pokusavam inicijalizirati SD karticu...");
   pinMode(10, OUTPUT); // Pin 10 mora biti zauzet za SD modul
-  SD.begin(chipSelect); // Inicijaliziramo SD karticu i dodijelimo pin
-  if (SD.exists("gpsTxtData.txt")) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
-    SD.remove("gpsTxtData.txt");
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Inicijalizacija kartice nije uspjela.");
+    return;
   }
-  if (SD.exists("gpsCSVData.csv")) { // Ako postoji gspCSVData.csv, izbrisi i ponovo napravi
-    SD.remove("gpsCSVData.csv");
+  Serial.println("Inicijalizacija uspjesno zavrsena.");
+  if (SD.exists(txtFileName)) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
+    SD.remove(txtFileName);
+  }
+  if (SD.exists(csvFileName)) { // Ako postoji gspCSVData.csv, izbrisi i ponovo napravi
+    SD.remove(csvFileName);
   }
 }
 
@@ -436,29 +440,32 @@ void transformation(float uncalibrated_values[3]) {
 4.400 - SDCard Methods
 -----------------------------------------
 */
-int writeTXTToSD() {
-  sdCardObject = SD.open("gpsTxtData.txt", FILE_WRITE); // Otvaramo gpsData.txt za pisanje
+void writeCSVToSD(char* fileName, String data_RTC, int code_AD, String data_GPS) {
+  sdCardObject = SD.open(fileName, FILE_WRITE);
+
   if (sdCardObject) {
-    sdCardObject.print(gps.location.lng(), 6); //Na 6 decimala
-    sdCardObject.print(",");
-    sdCardObject.print(gps.location.lat(), 6);
-    sdCardObject.print(" ");
+    Serial.println(fileName);
+    Serial.print("Zapisujem CSV. ");
+    sdCardObject.println(data_RTC + ";" + (String)code_AD + ";" + data_GPS);
     sdCardObject.close();
-    return 0; //Pisanje proslo ok
+    Serial.println("Zapisao.");
+  } else {
+    Serial.println("Pogreska kod otvaranja CSV filea.");
   }
-  else
-    return -1; //Nije uspio otvoriti
 }
 
-int writeCSVToSD(String data_RTC, int code_AD, String data_GPS) {
-  sdCardObject = SD.open("gpsCSVData.csv", FILE_WRITE); // Otvaramo gpsCSVData.csv za pisanje
-  if (sdCardObject) { //Ako je uspio otvoriti, inace SD.open vraca false
-    sdCardObject.print(data_RTC + ";" + (String)code_AD + ";" + data_GPS);
+void writeTXTToSD(char* fileName) {
+  sdCardObject = SD.open(fileName, FILE_WRITE);
+
+  if (sdCardObject) {
+    Serial.println(fileName);
+    Serial.print("Zapisujem TXT");
+    sdCardObject.println((String)gps.location.lat() + ";" + (String)gps.location.lng() + ";");
     sdCardObject.close();
-    return 0; //Pisanje proslo ok
+    Serial.println("Zapisao");
+  } else {
+    Serial.println("Pogreska kod otvaranja TXT filea.");
   }
-  else
-    return -1; //Nije uspio otvoriti
 }
 /*----------------------------------------
 500 - RTC Polling
@@ -541,8 +548,14 @@ void polling_Display(String ulaz, int offset, String ulaz2) {
   lcd.print(ulaz2);
 }
 
-void polling_Display(int line, String ulaz) {
-  lcd.setCursor(0, line);
+void polling_Display(int offset, int line, String ulaz) {
+  lcd.setCursor(offset, line);
+  lcd.print(ulaz);
+  lcd.setCursor(0, 0);
+}
+
+void polling_Display(int offset, String ulaz) {
+  lcd.setCursor(offset, 0);
   lcd.print(ulaz);
   lcd.setCursor(0, 0);
 }
