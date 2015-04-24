@@ -119,8 +119,8 @@ void loop() {
       //Polling other systems
       data_RTC = polling_RTC();
       data_GPS = polling_GPS(&code_GPS);
-      polling_Display("Status: OK");
-      polling_Display("Status: OK", 11, (String)GLOBAL_cycle);
+      polling_Display("Status: OK ", 11, (String)GLOBAL_cycle);
+      lcd.setCursor(0,0);
       //Writing to SD
       writeCSVToSD(csvFileName, data_RTC, code_AD, data_GPS);
       Serial.println(data_GPS);
@@ -445,11 +445,8 @@ void writeCSVToSD(char* fileName, String data_RTC, int code_AD, String data_GPS)
   sdCardObject = SD.open(fileName, FILE_WRITE);
 
   if (sdCardObject) {
-    Serial.println(fileName);
-    Serial.print("Zapisujem CSV. ");
     sdCardObject.println(data_RTC + ";" + (String)code_AD + ";" + data_GPS);
     sdCardObject.close();
-    Serial.println("Zapisao.");
   } else {
     Serial.println("Pogreska kod otvaranja CSV filea.");
   }
