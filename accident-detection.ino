@@ -120,11 +120,12 @@ void loop() {
       data_RTC = polling_RTC();
       data_GPS = polling_GPS(&code_GPS);
       polling_Display("Status: OK");
-
+      polling_Display("Status: OK", 11, (String)GLOBAL_cycle);
       //Writing to SD
       writeCSVToSD(csvFileName, data_RTC, code_AD, data_GPS);
-      //if (code_GPS == 100)
-      writeTXTToSD(txtFileName);
+      Serial.println(data_GPS);
+      if (code_GPS == 100)
+        writeTXTToSD(txtFileName);
 
       //Writing to other arduino for ethernet test
       net.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS);
