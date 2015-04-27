@@ -13,10 +13,10 @@
 
 //1.1. Includes
 //1.1.100 GPS Includes
-#include <TinyGPS++.h> // Biblioteka za GPS
-#include <SoftwareSerial.h> // Biblioteka za dodatnu serijsku kominkaciju
-#include <SPI.h> // Biblioteka (Serial Peripheral Interface) za komunikaciju SD kartice
-#include <SD.h> // Biblioteka za SD karticu
+#include <TinyGPS++.h> // Library for GPS
+#include <SoftwareSerial.h> // For additional serial communication
+#include <SPI.h> // (Serial Peripheral Interface) for SD card
+#include <SD.h> // For SD card
 
 //1.1.200 AD Includes
 #include "Wire.h"
@@ -27,28 +27,25 @@
 
 //1.2. Defines
 //1.2.100 GPS Defines
-#define RXPin 2 // TX i RX pinovi za GPS, spojiti TX-RX, RX-TX
+#define RXPin 2 // TX and RX pins for GPS, connect TX-RX, RX-TX
 #define TXPin 3
 
 //1.2.200 AD Defines
-#define AD_triggerInput_front 7
-#define AD_echoOutput_front 6
-#define AD_triggerInput_back 9
-#define AD_echoOutput_back 8
-#define AD_critical_distance 20
-#define AD_critical_gyro_up 1.20
-#define AD_critical_gyro_down 0.80
-#define AD_cycles 10
-
-//1.2.300 Network Defines
-#define DEBUG true
+#define triggerInputFrontAD 7 // Echo and trigger for front and back distance sensor
+#define echoOutputFrontAD 6
+#define triggerOutputBackAD 9
+#define echoOutputBackAD 8
+#define criticalDistanceAD 10  // Distance in centimeters for which the distance sensors react
+#define criticalGyroUpAD 1.20  // Used in algorithm for determining accident
+#define criticalGyroDownAD 0.80 // Changing these two coeficients - further from 1.0 = lower sensitivity, closer to 1.0 = higher sensitivity
+#define cycleAD 10  // How often the loop polles systems other than the AD
 
 //1.2.500 RTC Defines
-#define DS3231_I2C_ADDRESS 0x68
+#define i2cRTC 0x68 // I2C address of the RTC module
 
 //1.2.600 Display Defines
-#define cancelButton 37
-#define LCDpin1 11
+#define cancelButton 37  // Pin with cancel button
+#define LCDpin1 11  // LCD pins
 #define LCDpin2 12
 #define LCDpin3 13
 #define LCDpin4 14
@@ -58,24 +55,25 @@
 
 //1.3. Globals
 //1.3.100 GPS Global
-static const unsigned long GPSBaud = 9600; // GPS radi na 9600 bauda
-TinyGPSPlus gps; // Instanca TinyGPS objekta
-SoftwareSerial ss(RXPin, TXPin); // Serija sa GPS modulom
-File sdCardObject; // Varijabla za manipuliranje SD karticom
+static const unsigned long GPSBaud = 9600; // GPS works on 9600 baud
+TinyGPSPlus gps; // Instance of TinyGPS
+SoftwareSerial ss(RXPin, TXPin); // Serial connection with GPS module
+File sdCardObject; // Variable for manipulating SD card
 
-SoftwareSerial net(17, 18); // Serija sa GPS modulom
+//1.2.300 Ethernet Define
+SoftwareSerial net(17, 18); // Serial connection with ethernet module
 
 //1.2.400 SD Define
-int chipSelect = 4; // CS pin SD kartice je spojen na pin 5
+int chipSelect = 4; // CS pin of the SD card
 
 //1.3.200 AD Global
-HMC5883L AD_compass;
-float AD_Xnew, AD_Ynew, AD_Znew;
-float AD_Xold, AD_Yold, AD_Zold;
-int GLOBAL_cycle = 0;
+HMC5883L compassAD;  // Instance of the HMC object
+float xNewAD, yNewAD, zNewAD;  // X,Y,Z coordinates used for gyroscope
+float xOldAD, yOldAD, zOldAD;
+int cycleGlobal = 0;  // Global cycle counter
 
 //1.3.400 SD Global
-char* txtFileName = "txtfile.txt";
+char* txtFileName = "txtfile.txt";  // Files on SD card
 char* csvFileName = "csvfile.csv";
 
 //1.3.600 Display Global
@@ -90,80 +88,78 @@ LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
 
 //2.1. Setup
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(1200); // 9600 baud is used for GPS
   net.begin(19200);
-  setup_SDCard();
-  setup_GPS();
-  setup_AD();
-  pinMode(cancelButton, INPUT); //Inicijalizacija gumba za prekid slanja na server
-  GLOBAL_cycle = 0; //Globalna varijabla za polling
+  SetupSD();
+  SetupGPS();
+  SetupAD();
+  pinMode(cancelButton, INPUT); // Button on the prototype which cancels sending data to server when accident happens
+  cycleGlobal = 0; // Global cycle counter, used for determining system polling
 }
 
 
 //2.2. Loop
 void loop() {
   //2.2.1. Locals
-  int code_AD, code_Network, code_SDCard, code_Display, code_GPS; //Povratni code pojedinih sustava
-  String data_RTC, data_GPS; //Povratni podaci pojedinih sustava
-  int status_TXTWrite = 0, status_CSVWrite = 0; //Varijable za provjeravanje je li uspjesno zapisano na SD karticu
-  int accident_counter;
-  int buttonState;
-  bool accident_detected; //Provjerava je li doslo do nesrece
+  int codeAD, codeNetwork, codeSD, codeLCD, codeGPS; // Return code of systems
+  String dataRTC, dataGPS; // Return data of systems
+  int statusWriteTXT = 0, statusWriteCSV = 0; // Variables which check if SD card failed
+  int accidentCounter;  // Counts down 20 seconds on accident
+  int buttonState;  // Checks if button is pressed
+  bool accidentDetected;
 
 
-
-  //2.2.2. Polling and decision based on code_AD
-  code_AD = polling_AD();
-  if ((code_AD >= 200 && code_AD <= 204) || GLOBAL_cycle < 10) { //Everything ok - polling other systems and writing to SD
-    if (GLOBAL_cycle %  AD_cycles == 0) {
+  //2.2.2. Polling and decision based on codeAD
+  codeAD = PollingAD();
+  if ((codeAD >= 200 && codeAD <= 204) || cycleGlobal < 5) { //Everything ok - polling other systems and writing to SD
+    if (cycleGlobal %  cycleAD == 0) {
       //Polling other systems
-      data_RTC = polling_RTC();
-      data_GPS = polling_GPS(&code_GPS);
-      polling_Display("Status: OK ", 11, (String)GLOBAL_cycle);
+      dataRTC = PollingRTC();
+      dataGPS = PollingGPS(&codeGPS);
+      PollingLCD("Status: OK ", 11, (String)cycleGlobal);
       lcd.setCursor(0,0);
       //Writing to SD
-      writeCSVToSD(csvFileName, data_RTC, code_AD, data_GPS);
-      Serial.println(data_GPS);
-      if (code_GPS == 100)
+      writeCSVToSD(csvFileName, dataRTC, codeAD, dataGPS);
+      if (codeGPS == 100)
         writeTXTToSD(txtFileName);
 
       //Writing to other arduino for ethernet test
-      net.println(data_RTC + ";" + (String)code_AD + ";" + (String)code_GPS + ";" + data_GPS);
+      net.println(dataRTC + ";" + (String)codeAD + ";" + (String)codeGPS + ";" + dataGPS);
     }
   }
-  else if (code_AD >= 205 && code_AD <= 207) {
-    //Zapocni odbrojavanje
-    accident_detected = true;
-    accident_counter = 20;
+  else if (codeAD >= 205 && codeAD <= 207) {
+    // Start counting down to 0
+    accidentDetected = true;
+    accidentCounter = 20;
     buttonState = LOW;
 
-    display_Clear();
-    while (accident_counter > 0) {
-      accident_counter--;
-      polling_Display("Slanje za: ", 11, (String)accident_counter);
+    ClearLCD();
+    while (accidentCounter > 0) {
+      accidentCounter--;
+      PollingLCD("Sending in: ", 11, (String)accidentCounter);
       buttonState = digitalRead(cancelButton);
       if (buttonState == HIGH) {
-        accident_detected = false;
+        accidentDetected = false;
         break;
       }
-      delay(1000); //Cekamo 20 sekundi
-      display_Clear();
+      delay(1000); // Delay to wait 20 seconds
+      ClearLCD();
     }
 
-    if (accident_detected == true) {
-      //Ako tu ulazimo korisnik u 20 sekundi nije stisnuo gumb, dakle nesreca se dogodila
-      polling_Display("Poslano serveru!");
+    if (accidentDetected == true) {
+      // If we enter in this part it means user did not cancel sending to server in 20 seconds
+      PollingLCD("Sent to server!");
       delay(5000);
     }
 
-    display_Clear();
+    ClearLCD();
   }
 
   //2.2.4. Cycle update
-  if (GLOBAL_cycle > 100)
-    GLOBAL_cycle = 10;
+  if (cycleGlobal > 100)
+    cycleGlobal = 10;
   else
-    GLOBAL_cycle++;
+    cycleGlobal++;
 }
 
 /*------------------------------------------------------------------------------------------------------
@@ -172,36 +168,30 @@ void loop() {
 */
 
 //3.100 - GPS Setup
-void setup_GPS() {
+void SetupGPS() {
   ss.begin(GPSBaud);
 }
 
 //3.200 - AD Setup
-void setup_AD() {
+void SetupAD() {
   Wire.begin();
-  AD_compass = HMC5883L();
+  compassAD = HMC5883L();
   setupHMC5883L();
-  pinMode(AD_triggerInput_front, OUTPUT);
-  pinMode(AD_echoOutput_front, INPUT);
-  pinMode(AD_triggerInput_back, OUTPUT);
-  pinMode(AD_echoOutput_back, INPUT);;
+  pinMode(triggerInputFrontAD, OUTPUT);  //Setting up distance sensors
+  pinMode(echoOutputFrontAD, INPUT);
+  pinMode(triggerOutputBackAD, OUTPUT);
+  pinMode(echoOutputBackAD, INPUT);;
 }
 
 //3.400 - SDCard Setup
-void setup_SDCard() {
-  Serial.print("Pokusavam inicijalizirati SD karticu...");
-  pinMode(10, OUTPUT); // Pin 10 mora biti zauzet za SD modul
+void SetupSD() {
+  Serial.print("Trying to initialize SD card...");
+  pinMode(10, OUTPUT); // Pin 10 used for SD module
   if (!SD.begin(chipSelect)) {
-    Serial.println("Inicijalizacija kartice nije uspjela.");
+    Serial.println("Initialization failed.");
     return;
   }
-  Serial.println("Inicijalizacija uspjesno zavrsena.");
-  if (SD.exists(txtFileName)) { // Ako postoji gpsData.txt, izbrisat cemo ga i pisati nanovo
-    SD.remove(txtFileName);
-  }
-  if (SD.exists(csvFileName)) { // Ako postoji gspCSVData.csv, izbrisi i ponovo napravi
-    SD.remove(csvFileName);
-  }
+  Serial.println("Initialization completed.");
 }
 
 
@@ -214,31 +204,31 @@ void setup_SDCard() {
 4.100 - GPS Polling
 -----------------------------------------
 */
-String polling_GPS(int* code_GPS) {
-  // Nakon svake NMEA recenice ispisuju se podaci
+String PollingGPS(int* codeGPS) {
+  // Printing data after every NMEA sentence
   while (ss.available() > 0) {
     if (gps.encode(ss.read())) {
-      return getGPSData(code_GPS);
+      return getGPSData(codeGPS);
     }
   }
-  if (millis() > 5000 && gps.charsProcessed() < 10) // GPS ne radi
+  if (millis() > 5000 && gps.charsProcessed() < 10) // GPS not working
   {
-    *code_GPS = 104;
-    return "104;x;x;x;"; // Vrati kod za gresku
+    *codeGPS = 104;
+    return "104;x;x;x;"; // Return error code
   }
-  *code_GPS = 105;
+  *codeGPS = 105;
   return "105;x;x;x;";
 }
-// Funkcija za ispis podataka
-String getGPSData(int* code_GPS) {
+// Function for error print
+String getGPSData(int* codeGPS) {
   bool locationIsValid = false;
   bool speedIsValid = false;
 
-  // String koji ce biti vracen sa ili bez error kodova
+  // String which returns status
   String gpsDataString = "";
   String gpsDataCode = "";
 
-  // Provjere
+  // Checking location and speed
   if (gps.location.isValid()) {
     locationIsValid = true;
     gpsDataString += (String)gps.location.lat() + ";" + (String)gps.location.lng() + ";";
@@ -256,19 +246,19 @@ String getGPSData(int* code_GPS) {
   }
 
   if (locationIsValid && speedIsValid) {
-    *code_GPS = 100;
+    *codeGPS = 100;
     gpsDataCode = "100;";
   }
   else if (locationIsValid && !speedIsValid) {
-    *code_GPS = 102;
+    *codeGPS = 102;
     gpsDataCode = "102;";
   }
   else if (!locationIsValid && speedIsValid) {
-    *code_GPS = 101;
+    *codeGPS = 101;
     gpsDataCode = "101;";
   }
   else {
-    *code_GPS = 103;
+    *codeGPS = 103;
     gpsDataCode = "103;";
   }
 
@@ -279,7 +269,7 @@ String getGPSData(int* code_GPS) {
 4.200 - AD Polling
 -----------------------------------------
 */
-int polling_AD() {
+int PollingAD() {
   char accidentState = 0;
   AccidentDetector(&accidentState);
   switch (accidentState) {
@@ -361,56 +351,56 @@ void AccidentDetector(char* state) {
 }
 bool ReadDistanceFront()
 {
-  long duration_front, distance_front;
-  digitalWrite(AD_triggerInput_front, LOW);
-  digitalWrite(AD_triggerInput_front, HIGH);
-  digitalWrite(AD_triggerInput_front, LOW);
-  duration_front = pulseIn(AD_echoOutput_front, HIGH);
-  distance_front = (duration_front / 2.) / 29.1;
-  return (distance_front < (long)AD_critical_distance);
+  long durationFront, distanceFront;
+  digitalWrite(triggerInputFrontAD, LOW);
+  digitalWrite(triggerInputFrontAD, HIGH);
+  digitalWrite(triggerInputFrontAD, LOW);
+  durationFront = pulseIn(echoOutputFrontAD, HIGH);
+  distanceFront = (durationFront / 2.) / 29.1;
+  return (distanceFront < (long)criticalDistanceAD);
 }
 bool ReadDistanceBack()
 {
-  long duration_back, distance_back;
-  digitalWrite(AD_triggerInput_back, LOW);
-  digitalWrite(AD_triggerInput_back, HIGH);
-  digitalWrite(AD_triggerInput_back, LOW);
-  duration_back = pulseIn(AD_echoOutput_back, HIGH);
-  distance_back = (duration_back / 2.) / 29.1;
-  return (distance_back < (long)AD_critical_distance);
+  long durationBack, distanceBack;
+  digitalWrite(triggerOutputBackAD, LOW);
+  digitalWrite(triggerOutputBackAD, HIGH);
+  digitalWrite(triggerOutputBackAD, LOW);
+  durationBack = pulseIn(echoOutputBackAD, HIGH);
+  distanceBack = (durationBack / 2.) / 29.1;
+  return (distanceBack < (long)criticalDistanceAD);
 }
 bool ReadGyro() {
   getHeading();
   //Algorithm for determination of critical gyro change
   //xv,yv,zv are variables for the XYZ axis values
-  //critical_gyro_up and down are global constants which adjust algorithm sensitivity to movement
+  //criticalGyroUpAD and down are global constants which adjust algorithm sensitivity to movement
   bool gyroChange = false;
-  if (abs(AD_Xnew) > abs(AD_Xold * AD_critical_gyro_up) ||
-      abs(AD_Xnew) < abs(AD_Xold * AD_critical_gyro_down) ||
-      abs(AD_Ynew) > abs(AD_Yold * AD_critical_gyro_up) ||
-      abs(AD_Ynew) < abs(AD_Yold * AD_critical_gyro_down) ||
-      abs(AD_Znew) > abs(AD_Zold * AD_critical_gyro_up) ||
-      abs(AD_Znew) < abs(AD_Zold * AD_critical_gyro_down)
+  if (abs(xNewAD) > abs(xOldAD * criticalGyroUpAD) ||
+      abs(xNewAD) < abs(xOldAD * criticalGyroDownAD) ||
+      abs(yNewAD) > abs(yOldAD * criticalGyroUpAD) ||
+      abs(yNewAD) < abs(yOldAD * criticalGyroDownAD) ||
+      abs(zNewAD) > abs(zOldAD * criticalGyroUpAD) ||
+      abs(zNewAD) < abs(zOldAD * criticalGyroDownAD)
      ) {
     gyroChange = true;
   }
-  AD_Xold = AD_Xnew;
-  AD_Yold = AD_Ynew;
-  AD_Zold = AD_Znew;
+  xOldAD = xNewAD;
+  yOldAD = yNewAD;
+  zOldAD = zNewAD;
   return gyroChange;
 }
 //Calibration functions
 void setupHMC5883L()
 {
-  AD_compass.SetScale(0.88);
-  AD_compass.SetMeasurementMode(Measurement_Continuous);
+  compassAD.SetScale(0.88);
+  compassAD.SetMeasurementMode(Measurement_Continuous);
 }
 void getHeading()
 {
-  MagnetometerRaw raw = AD_compass.ReadRawAxis();
-  AD_Xnew = (float)raw.XAxis;
-  AD_Ynew = (float)raw.YAxis;
-  AD_Znew = (float)raw.ZAxis;
+  MagnetometerRaw raw = compassAD.ReadRawAxis();
+  xNewAD = (float)raw.XAxis;
+  yNewAD = (float)raw.YAxis;
+  zNewAD = (float)raw.ZAxis;
 }
 float calibrated_values[3];
 void transformation(float uncalibrated_values[3]) {
@@ -441,14 +431,15 @@ void transformation(float uncalibrated_values[3]) {
 4.400 - SDCard Methods
 -----------------------------------------
 */
-void writeCSVToSD(char* fileName, String data_RTC, int code_AD, String data_GPS) {
+void writeCSVToSD(char* fileName, String dataRTC, int codeAD, String dataGPS) {
   sdCardObject = SD.open(fileName, FILE_WRITE);
 
   if (sdCardObject) {
-    sdCardObject.println(data_RTC + ";" + (String)code_AD + ";" + data_GPS);
+    sdCardObject.println(dataRTC + ";" + (String)codeAD + ";" + dataGPS);
+    Serial.println(dataRTC + ";" + (String)codeAD + ";" + dataGPS);
     sdCardObject.close();
   } else {
-    Serial.println("Pogreska kod otvaranja CSV filea.");
+    Serial.println("Error opening CSV file.");
   }
 }
 
@@ -457,12 +448,12 @@ void writeTXTToSD(char* fileName) {
 
   if (sdCardObject) {
     Serial.println(fileName);
-    Serial.print("Zapisujem TXT");
+    Serial.print("Writing TXT");
     sdCardObject.println((String)gps.location.lat() + ";" + (String)gps.location.lng() + ";");
     sdCardObject.close();
-    Serial.println("Zapisao");
+    Serial.println("Finished writing");
   } else {
-    Serial.println("Pogreska kod otvaranja TXT filea.");
+    Serial.println("Error opening TXT file.");
   }
 }
 /*----------------------------------------
@@ -478,7 +469,7 @@ byte bcdToDec(byte val) {
 void setTime(byte second, byte minute, byte hour,
              byte dayOfWeek, byte dayOfMonth, byte month,
              byte year) {
-  Wire.beginTransmission(DS3231_I2C_ADDRESS);
+  Wire.beginTransmission(i2cRTC);
   Wire.write(0);
   Wire.write(decToBcd(second));
   Wire.write(decToBcd(minute));
@@ -489,17 +480,17 @@ void setTime(byte second, byte minute, byte hour,
   Wire.write(decToBcd(year));
   Wire.endTransmission();
 }
-String polling_RTC() {
+String PollingRTC() {
   String time = "";
   byte second, minute, hour, dayOfWeek, dayOfMonth, month, year;
 
   // Getting time from the DS3231
-  Wire.beginTransmission(DS3231_I2C_ADDRESS);
+  Wire.beginTransmission(i2cRTC);
   Wire.write(0); // set register pointer to 00h
   Wire.endTransmission();
-  Wire.requestFrom(DS3231_I2C_ADDRESS, 7);
+  Wire.requestFrom(i2cRTC, 7);
 
-  // request seven bytes of data starting from register 00h
+  // Request seven bytes of data starting from register 00h
   second = bcdToDec(Wire.read() & 0x7f);
   minute = bcdToDec(Wire.read());
   hour = bcdToDec(Wire.read() & 0x3f);
@@ -535,29 +526,29 @@ String polling_RTC() {
 600 - Display Polling
 -----------------------------------------
 */
-void polling_Display(String ulaz) {
+void PollingLCD(String ulaz) {
   lcd.setCursor(0, 0);
   lcd.print(ulaz);
 }
 
-void polling_Display(String ulaz, int offset, String ulaz2) {
+void PollingLCD(String ulaz, int offset, String ulaz2) {
   lcd.print(ulaz);
   lcd.setCursor(offset, 0);
   lcd.print(ulaz2);
 }
 
-void polling_Display(int offset, int line, String ulaz) {
+void PollingLCD(int offset, int line, String ulaz) {
   lcd.setCursor(offset, line);
   lcd.print(ulaz);
   lcd.setCursor(0, 0);
 }
 
-void polling_Display(int offset, String ulaz) {
+void PollingLCD(int offset, String ulaz) {
   lcd.setCursor(offset, 0);
   lcd.print(ulaz);
   lcd.setCursor(0, 0);
 }
 
-void display_Clear() {
+void ClearLCD() {
   lcd.clear();
 }
