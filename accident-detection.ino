@@ -27,8 +27,8 @@
 
 //1.2. Defines
 //1.2.100 GPS Defines
-#define RXPin 2 // TX and RX pins for GPS, connect TX-RX, RX-TX
-#define TXPin 3
+#define pinRX 2 // TX and RX pins for GPS, connect TX-RX, RX-TX
+#define pinTX 3
 
 //1.2.200 AD Defines
 #define triggerInputFrontAD 7 // Echo and trigger for front and back distance sensor
@@ -45,19 +45,19 @@
 
 //1.2.600 Display Defines
 #define cancelButton 37  // Pin with cancel button
-#define LCDpin1 11  // LCD pins
-#define LCDpin2 12
-#define LCDpin3 13
-#define LCDpin4 14
-#define LCDpin5 15
-#define LCDpin6 16
+#define pin1LCD 11  // LCD pins
+#define pin2LCD 12
+#define pin3LCD 13
+#define pin4LCD 14
+#define pin5LCD 15
+#define pin6LCD 16
 
 
 //1.3. Globals
 //1.3.100 GPS Global
-static const unsigned long GPSBaud = 9600; // GPS works on 9600 baud
+static const unsigned long baudGPS = 9600; // GPS works on 9600 baud
 TinyGPSPlus gps; // Instance of TinyGPS
-SoftwareSerial ss(RXPin, TXPin); // Serial connection with GPS module
+SoftwareSerial ss(pinRX, pinTX); // Serial connection with GPS module
 File sdCardObject; // Variable for manipulating SD card
 
 //1.2.300 Ethernet Define
@@ -77,7 +77,7 @@ char* txtFileName = "txtfile.txt";  // Files on SD card
 char* csvFileName = "csvfile.csv";
 
 //1.3.600 Display Global
-LiquidCrystal lcd(LCDpin1, LCDpin2, LCDpin3, LCDpin4, LCDpin5, LCDpin6);
+LiquidCrystal lcd(pin1LCD, pin2LCD, pin3LCD, pin4LCD, pin5LCD, pin6LCD);
 
 
 /*------------------------------------------------------------------------------------------------------
@@ -169,7 +169,7 @@ void loop() {
 
 //3.100 - GPS Setup
 void SetupGPS() {
-  ss.begin(GPSBaud);
+  ss.begin(baudGPS);
 }
 
 //3.200 - AD Setup
