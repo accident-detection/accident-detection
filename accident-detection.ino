@@ -112,12 +112,12 @@ void loop() {
   //2.2.2. Polling and decision based on codeAD
   codeAD = PollingAD();
   if ((codeAD >= 200 && codeAD <= 204) || cycleGlobal < 5) { //Everything ok - polling other systems and writing to SD
-    if (cycleGlobal %  cycleAD == 0) {
-      //Polling other systems
+    if (cycleGlobal %  cycleAD == 0) { 
+      // Polling other systems every N-th time to improve system speed
       dataRTC = PollingRTC();
       dataGPS = PollingGPS(&codeGPS);
       PollingLCD("Status: OK ", 11, (String)cycleGlobal);
-      lcd.setCursor(0,0);
+      lcd.setCursor(0, 0);
       //Writing to SD
       writeCSVToSD(csvFileName, dataRTC, codeAD, dataGPS);
       if (codeGPS == 100)
@@ -132,7 +132,10 @@ void loop() {
     accidentDetected = true;
     accidentCounter = 20;
     buttonState = LOW;
+    // Write the last polling information to SD card
+    writeCSVToSD(csvFileName, dataRTC, codeAD, dataGPS);
 
+    // Start counting down 20 seconds
     ClearLCD();
     while (accidentCounter > 0) {
       accidentCounter--;
@@ -140,6 +143,7 @@ void loop() {
       buttonState = digitalRead(cancelButton);
       if (buttonState == HIGH) {
         accidentDetected = false;
+        writeCSVToSD(csvFileName, "User pressed button, sending to server canceled!");
         break;
       }
       delay(1000); // Delay to wait 20 seconds
@@ -148,6 +152,10 @@ void loop() {
 
     if (accidentDetected == true) {
       // If we enter in this part it means user did not cancel sending to server in 20 seconds
+      writeCSVToSD(csvFileName, "Accident detected, information sent to server!");
+      writeCSVToSD(csvFileName, dataRTC, codeAD, dataGPS);
+      if (codeGPS == 100)
+        writeTXTToSD(txtFileName);
       PollingLCD("Sent to server!");
       delay(5000);
     }
@@ -372,7 +380,7 @@ bool ReadDistanceBack()
 bool ReadGyro() {
   getHeading();
   //Algorithm for determination of critical gyro change
-  //xv,yv,zv are variables for the XYZ axis values
+  //x,y,z are variables for the XYZ axis values
   //criticalGyroUpAD and down are global constants which adjust algorithm sensitivity to movement
   bool gyroChange = false;
   if (abs(xNewAD) > abs(xOldAD * criticalGyroUpAD) ||
@@ -431,6 +439,17 @@ void transformation(float uncalibrated_values[3]) {
 4.400 - SDCard Methods
 -----------------------------------------
 */
+void writeCSVToSD(char* fileName, String message) {
+  sdCardObject = SD.open(fileName, FILE_WRITE);
+  if (sdCardObject) {
+    sdCardObject.println(message);
+    Serial.println(message);
+    sdCardObject.close();
+  } else {
+    Serial.println("Error opening CSV file.");
+  }
+}
+
 void writeCSVToSD(char* fileName, String dataRTC, int codeAD, String dataGPS) {
   sdCardObject = SD.open(fileName, FILE_WRITE);
 
