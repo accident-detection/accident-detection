@@ -94,14 +94,14 @@ void setup() {
   SetupGPS();
   SetupAD();
   pinMode(cancelButton, INPUT); // Button on the prototype which cancels sending data to server when accident happens
-  cycleGlobal = 0; // Global cycle counter, used for determining system polling
+  cycleGlobal = 10; // Global cycle counter, used for determining system polling
 }
 
 
 //2.2. Loop
 void loop() {
   //2.2.1. Locals
-  int codeAD, codeNetwork, codeSD, codeLCD, codeGPS; // Return code of systems
+  int codeAD = 200, codeGPS = 100; // Return code of systems
   String dataRTC, dataGPS; // Return data of systems
   int statusWriteTXT = 0, statusWriteCSV = 0; // Variables which check if SD card failed
   int accidentCounter;  // Counts down 20 seconds on accident
