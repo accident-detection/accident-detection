@@ -111,8 +111,8 @@ void loop() {
 
   //2.2.2. Polling and decision based on codeAD
   codeAD = PollingAD();
-  if ((codeAD >= 200 && codeAD <= 204) || cycleGlobal < 5) { //Everything ok - polling other systems and writing to SD
-    if (cycleGlobal %  cycleAD == 0) { 
+  if (codeAD >= 200 && codeAD <= 204) { //Everything ok - polling other systems and writing to SD
+    if (cycleGlobal %  cycleAD == 0) {
       // Polling other systems every N-th time to improve system speed
       dataRTC = PollingRTC();
       dataGPS = PollingGPS(&codeGPS);
@@ -189,6 +189,11 @@ void SetupAD() {
   pinMode(echoOutputFrontAD, INPUT);
   pinMode(triggerOutputBackAD, OUTPUT);
   pinMode(echoOutputBackAD, INPUT);;
+
+  getHeading();
+  xOldAD = xNewAD;
+  yOldAD = yNewAD;
+  zOldAD = zNewAD;
 }
 
 //3.400 - SDCard Setup
