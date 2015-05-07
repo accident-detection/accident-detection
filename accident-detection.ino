@@ -1,4 +1,3 @@
-
 /*DOCUMENTATION:
 1. Includes | Defines |Globals
 2. Loop and main
@@ -46,6 +45,7 @@
 
 //1.2.600 Display Defines
 #define cancelButton 37  // Pin with cancel button
+#define sendButton 38 // Pin with send button
 #define pin1LCD 11  // LCD pins
 #define pin2LCD 12
 #define pin3LCD 13
@@ -106,10 +106,22 @@ void loop() {
   String dataRTC, dataGPS; // Return data of systems
   int statusWriteTXT = 0, statusWriteCSV = 0; // Variables which check if SD card failed
   int accidentCounter;  // Counts down 20 seconds on accident
-  int buttonState;  // Checks if button is pressed
+  int cancelButtonState;  // Checks if button is pressed
+  int sendButtonState;
   bool accidentDetected;
+  bool buttonReported;
 
+  sendButtonState = digitalRead(sendButton);
+  if (sendButtonState == HIGH) {
+    buttonReported = BeginCountdown();
+    if (buttonReported) {
+      writeCSVToSD(csvFileName, "Accident detected, information sent to server!");
+      writeCSVToSD(csvFileName, dataRTC, codeAD, dataGPS);
 
+      PollingLCD("Sent to server!");
+      delay(5000);
+    }
+  }
   //2.2.2. Polling and decision based on codeAD
   codeAD = PollingAD();
   if (codeAD >= 200 && codeAD <= 204) { //Everything ok - polling other systems and writing to SD
@@ -132,7 +144,7 @@ void loop() {
     // Start counting down to 0
     accidentDetected = true;
     accidentCounter = 20;
-    buttonState = LOW;
+    cancelButtonState = LOW;
     // Write the last polling information to SD card
     writeCSVToSD(csvFileName, dataRTC, codeAD, dataGPS);
 
@@ -141,8 +153,8 @@ void loop() {
     while (accidentCounter > 0) {
       accidentCounter--;
       PollingLCD("Sending in: ", 11, (String)accidentCounter);
-      buttonState = digitalRead(cancelButton);
-      if (buttonState == HIGH) {
+      cancelButtonState = digitalRead(cancelButton);
+      if (cancelButtonState == HIGH) {
         accidentDetected = false;
         writeCSVToSD(csvFileName, "User pressed button, sending to server canceled!");
         break;
@@ -169,6 +181,25 @@ void loop() {
     currentCycle = 10;
   else
     currentCycle++;
+}
+
+bool BeginCountdown() {
+  int sendButtonState = digitalRead(sendButton);
+  int seconds = 0;
+  PollingLCD("Hold the button for 5 seconds to report accident.");
+
+  while ((sendButtonState == HIGH || seconds > 5)) {
+    seconds++;
+    sendButtonState = digitalRead(sendButton);
+    if (sendButtonState == LOW)
+      break;
+    delay(1000);
+  }
+
+  if (seconds < 5)
+    return false;
+  else
+    return true;
 }
 
 /*------------------------------------------------------------------------------------------------------
