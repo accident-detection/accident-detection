@@ -1,3 +1,4 @@
+
 /*DOCUMENTATION:
 1. Includes | Defines |Globals
 2. Loop and main
@@ -36,9 +37,9 @@
 #define triggerOutputBackAD 9
 #define echoOutputBackAD 8
 #define criticalDistanceAD 10  // Distance in centimeters for which the distance sensors react
-#define criticalGyroUpAD 1.20  // Used in algorithm for determining accident
-#define criticalGyroDownAD 0.80 // Changing these two coeficients - further from 1.0 = lower sensitivity, closer to 1.0 = higher sensitivity
-#define cycleAD 10  // How often the loop polles systems other than the AD
+#define criticalGyroUpAD 1.05  // Used in algorithm for determining accident
+#define criticalGyroDownAD 0.95 // Changing these two coeficients - further from 1.0 = lower sensitivity, closer to 1.0 = higher sensitivity
+#define cycleFrequencyAD 4  // How often the loop polles systems other than the AD
 
 //1.2.500 RTC Defines
 #define i2cRTC 0x68 // I2C address of the RTC module
@@ -70,7 +71,7 @@ int chipSelect = 4; // CS pin of the SD card
 HMC5883L compassAD;  // Instance of the HMC object
 float xNewAD, yNewAD, zNewAD;  // X,Y,Z coordinates used for gyroscope
 float xOldAD, yOldAD, zOldAD;
-int cycleGlobal = 0;  // Global cycle counter
+int currentCycle = 0;  // Global cycle counter
 
 //1.3.400 SD Global
 char* txtFileName = "txtfile.txt";  // Files on SD card
@@ -94,7 +95,7 @@ void setup() {
   SetupGPS();
   SetupAD();
   pinMode(cancelButton, INPUT); // Button on the prototype which cancels sending data to server when accident happens
-  cycleGlobal = 10; // Global cycle counter, used for determining system polling
+  currentCycle = 10; // Global cycle counter, used for determining system polling
 }
 
 
@@ -112,11 +113,11 @@ void loop() {
   //2.2.2. Polling and decision based on codeAD
   codeAD = PollingAD();
   if (codeAD >= 200 && codeAD <= 204) { //Everything ok - polling other systems and writing to SD
-    if (cycleGlobal %  cycleAD == 0) {
+    if (currentCycle %  cycleFrequencyAD == 0) {
       // Polling other systems every N-th time to improve system speed
       dataRTC = PollingRTC();
       dataGPS = PollingGPS(&codeGPS);
-      PollingLCD("Status: OK ", 11, (String)cycleGlobal);
+      PollingLCD("Status: OK ", 11, (String)currentCycle);
       lcd.setCursor(0, 0);
       //Writing to SD
       writeCSVToSD(csvFileName, dataRTC, codeAD, dataGPS);
@@ -164,10 +165,10 @@ void loop() {
   }
 
   //2.2.4. Cycle update
-  if (cycleGlobal > 100)
-    cycleGlobal = 10;
+  if (currentCycle > 90)
+    currentCycle = 10;
   else
-    cycleGlobal++;
+    currentCycle++;
 }
 
 /*------------------------------------------------------------------------------------------------------
