@@ -36,8 +36,8 @@
 #define triggerOutputBackAD 9
 #define echoOutputBackAD 8
 #define criticalDistanceAD 10  // Distance in centimeters for which the distance sensors react
-#define criticalGyroUpAD 1.05  // Used in algorithm for determining accident
-#define criticalGyroDownAD 0.95 // Changing these two coeficients - further from 1.0 = lower sensitivity, closer to 1.0 = higher sensitivity
+#define criticalGyroUpAD 1.10  // Used in algorithm for determining accident
+#define criticalGyroDownAD 0.90 // Changing these two coeficients - further from 1.0 = lower sensitivity, closer to 1.0 = higher sensitivity
 #define cycleFrequencyAD 4  // How often the loop polles systems other than the AD
 
 //1.2.500 RTC Defines
@@ -120,6 +120,7 @@ void loop() {
 
       PollingLCD("Sent to server!");
       delay(5000);
+      ClearLCD();
     }
   }
   //2.2.2. Polling and decision based on codeAD
@@ -188,7 +189,7 @@ bool BeginCountdown() {
   int seconds = 0;
   PollingLCD("Hold the button for 5 seconds to report accident.");
 
-  while ((sendButtonState == HIGH || seconds > 5)) {
+  while ((sendButtonState == HIGH && seconds < 5)) {
     seconds++;
     sendButtonState = digitalRead(sendButton);
     if (sendButtonState == LOW)
